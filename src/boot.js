@@ -1,5 +1,5 @@
 async function boot(){
-  applyTheme(); render();
+  applyTheme(); uiIniciar(); render();
   window.addEventListener('hashchange', render);
   offRegistrarSW();
   await Store.init();

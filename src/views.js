@@ -27,8 +27,10 @@ function topbar(r){
   var nav=cli?'<a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Minha obra</a>'
     :'<a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a>'+(Store.papel==='campo'?'':'<a href="#/cadastros"'+cur('cadastros')+'>Cadastros</a>')+'<a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>';
   return '<header class="top"><div class="top-in"><a class="brand" href="#/painel" aria-label="Cariati Obras, início"><img class="brand-logo" src="'+LOGO+'" alt="Cariati Arquitetura &amp; Gestão" width="56" height="44"><span class="brand-t">Obras</span></a>'
-    +'<nav class="nav" aria-label="Principal">'+nav+'</nav>'
-    +'<div class="tools">'+sinoAvisos(r)+(cli?'<button class="btn ghost sm" data-act="nuvem-sair">Sair</button>':'<button class="btn ghost sm" data-act="exportar" title="Baixar uma cópia dos dados">Exportar</button>')+'<button class="btn ghost sm" data-act="tema" title="Alternar tema claro e escuro" aria-label="Alternar tema">◐</button></div></div></header>';
+    +(cli?'':'<button type="button" class="btn primary side-new" data-act="obra-nova" data-write aria-label="Nova obra">+ <b>Nova obra</b></button>')
+    +'<nav class="nav" aria-label="Principal">'+nav+'</nav>'+(cli?'':sideFav())
+    +'<button type="button" class="nav-more" data-act="nav-mais" aria-haspopup="dialog">Mais</button>'
+    +'<div class="tools"><button type="button" class="btn ghost sm nav-recolher" data-act="nav-recolher" aria-label="Recolher menu lateral" title="Recolher menu">«</button>'+sinoAvisos(r)+(cli?'<button class="btn ghost sm" data-act="nuvem-sair">Sair</button>':'<button class="btn ghost sm" data-act="exportar" title="Baixar uma cópia dos dados">Exportar</button>')+'<button class="btn ghost sm" data-act="tema" title="Alternar tema claro e escuro" aria-label="Alternar tema">◐</button></div></div></header>';
 }
 function banners(){
   var b='';
@@ -82,7 +84,7 @@ function vPainel(){
       +'<div class="row" style="margin-top:10px;gap:8px"><span class="chip '+(ppc?(ppc.ppc*100>=(o.metaPPC==null?80:o.metaPPC)?'ok':'warn'):'')+'">PPC '+(ppc?pct(ppc.ppc):'—')+'</span><span class="chip '+(cr?'crit':(ab.length?'warn':'ok'))+'">'+plural(ab.length,'ocorrência aberta','ocorrências abertas')+(cr?' ('+cr+' crítica'+(cr>1?'s':'')+')':'')+'</span></div></a>';
   }).join('');
   var vazio='<div class="card empty" style="margin-top:18px"><h3>Nenhuma obra cadastrada</h3><p>Cadastre a primeira obra para receber as 22 etapas do protocolo, o cronograma e os controles de qualidade.</p><p style="margin-top:14px"><button class="btn primary" data-act="obra-nova" data-write>Cadastrar obra</button></p></div>';
-  return '<div class="wrap"><div class="row spread"><h1>Obras</h1><button class="btn primary" data-act="obra-nova" data-write>+ Nova obra</button></div>'+vDashboard()+alHtml
+  return '<div class="wrap">'+crumbs([['Obras']])+'<div class="row spread"><h1>Obras</h1><button class="btn primary" data-act="obra-nova" data-write>+ Nova obra</button></div>'+heroPainel()+vDashboard()+alHtml
     +(obras.length?'<div class="grid cols3 sec">'+cards+'</div>':vazio)+'</div>';
 }
 
@@ -91,8 +93,8 @@ function vObra(r){
   var o=G('obras',r.oid); if(!o) return notFound();
   var mapa=abaMapa(), tab=mapa[r.tab]?r.tab:(mapa.resumo?'resumo':'chamados'), fn=mapa[tab];
   var meta=[o.cliente, o.endereco, o.tipologia, o.area?o.area+' m²':'', o.inicio?'início em '+fmt(o.inicio):''].filter(Boolean).map(esc).join(' · ');
-  return '<div class="wrap"><a class="back" href="#/painel">← Todas as obras</a>'
-    +'<div class="ob-head"><div class="grow"><h1>'+esc(o.nome)+(o.codigo?' <span class="muted small num">'+esc(o.codigo)+'</span>':'')+'</h1><div class="meta">'+chipMod(o.modalidade)+(o.situacao==='cancelada'?'<span class="chip crit">Cancelada'+(o.canceladaEm?' em '+fmt(o.canceladaEm):'')+'</span>':'')+(o.situacao==='encerrada'?'<span class="chip ok">Encerrada em '+fmt(o.encerradaEm)+'</span>':'')+'<span>'+meta+'</span></div></div>'
+  return '<div class="wrap">'+crumbs([['Obras','#/painel'],[o.nome]])+'<a class="back" href="#/painel">← Todas as obras</a>'
+    +'<div class="ob-head"><div class="grow"><h1>'+esc(o.nome)+(ehCliente()?'':favBtn(o.id))+(o.codigo?' <span class="muted small num">'+esc(o.codigo)+'</span>':'')+'</h1><div class="meta">'+chipMod(o.modalidade)+(o.situacao==='cancelada'?'<span class="chip crit">Cancelada'+(o.canceladaEm?' em '+fmt(o.canceladaEm):'')+'</span>':'')+(o.situacao==='encerrada'?'<span class="chip ok">Encerrada em '+fmt(o.encerradaEm)+'</span>':'')+'<span>'+meta+'</span></div></div>'
     +'<div class="row"><button class="btn" data-act="obra-editar" data-oid="'+o.id+'" data-write>Editar obra</button></div></div>'
     +(ehCliente()?'':'<div class="no-print" style="margin-top:20px">'+regua(o.id,false)+legenda()+'</div>')
     +obraNav(o,tab)
@@ -111,6 +113,7 @@ function tResumo(o){
   var venc=ab.filter(vencidaOc), maxV=venc.reduce(function(m,x){return Math.max(m,atrasoOc(x));},0);
   var lib=ETAPAS.filter(function(e){ return etapaDoc(oid,e.n).status==='liberada'; }).length;
   var cron=avancoCron(oid), atr=byObra('atividades',oid).filter(atAtrasada).length;
+  var hero=heroObra(o);
   var alHtml=al.length?'<section class="card"><div class="card-h"><h2>Alertas da obra</h2></div><ul class="alerts">'+al.map(function(a){ return '<li><span class="dot '+a.k+'"></span><div class="grow">'+esc(a.t)+'</div><a class="small" href="'+a.to+'">Abrir</a></li>'; }).join('')+'</ul></section>'
     :'<section class="card pad"><span class="dot ok" style="margin-right:8px"></span>Nenhum alerta aberto nesta obra.</section>';
   var tbl='<section class="card"><div class="card-h"><h2>Indicadores</h2></div><div class="tbl-scroll"><table class="ind"><thead><tr><th>Indicador</th><th>Valor</th><th>Situação</th></tr></thead><tbody>'
@@ -136,7 +139,7 @@ function tResumo(o){
   var maxB=Math.max.apply(null,bands.map(function(b){return ab.filter(function(x){var i=idadeOc(x);return i>=b[1]&&i<=b[2];}).length;}).concat([1]));
   var agingHtml=ab.length?bands.map(function(b){ var n=ab.filter(function(x){var i=idadeOc(x);return i>=b[1]&&i<=b[2];}).length; return '<div class="hbar"><span>'+b[0]+'</span><div class="t"><i style="width:'+Math.round(n/maxB*100)+'%;background:'+(b[1]>=8?'var(--crit)':'var(--steel)')+'"></i></div><span class="num">'+n+'</span></div>'; }).join(''):'<p class="muted small" style="padding:0 16px">Nenhum apontamento aberto.</p>';
   var agingCard='<section class="card"><div class="card-h"><h2>Idade dos apontamentos abertos</h2></div><div style="padding:10px 0">'+agingHtml+'</div></section>';
-  return '<div class="stack">'+cadAviso(o)+alHtml+resumoProximos(o)+'<div class="grid cols2"><div class="stack">'+tbl+'</div><div class="stack">'+ppcCard+causasCard+agingCard+'</div></div></div>';
+  return '<div class="stack">'+(ehCliente()?'':hero)+cadAviso(o)+alHtml+resumoProximos(o)+'<div class="grid cols2"><div class="stack">'+tbl+'</div><div class="stack">'+ppcCard+causasCard+agingCard+'</div></div></div>';
 }
 
 function kcardEtapa(o,e){
@@ -294,18 +297,18 @@ function render(){
   if(Store.mode==='boot'){ app.innerHTML='<div class="wrap"><p class="muted">Conectando aos dados das obras…</p></div>'; return; }
   var r=parseRoute(), key=location.hash||'#/painel', y=window.scrollY;
   var gs=document.querySelector('.gantt-scroll'); if(gs) ui.ganttScroll=gs.scrollLeft;
-  if(Store.mode==='login'){ app.innerHTML=vLogin(); lastKey=null; return; }
-  if(Store.mode==='sem_acesso'){ app.innerHTML=vSemAcesso(); lastKey=null; return; }
+  if(Store.mode==='login'){ app.innerHTML=vLogin(); lastKey=null; uiPos(); return; }
+  if(Store.mode==='sem_acesso'){ app.innerHTML=vSemAcesso(); lastKey=null; uiPos(); return; }
   if(r.view==='nuvem'||r.view==='historico'||r.view==='avisos'||r.view==='pendencias'){
     document.body.classList.toggle('ro', !Store.writable);
     app.innerHTML=topbar(r)+banners()+(r.view==='nuvem'?vNuvem():(r.view==='avisos'?vAvisos():(r.view==='pendencias'?vPendencias():vHistorico())));
-    if(key!==lastKey) window.scrollTo(0,0); lastKey=key; return;
+    if(key!==lastKey) window.scrollTo(0,0); lastKey=key; uiPos(); return;
   }
   var body=r.view==='obra'?vObra(r):(r.view==='etapa'?vEtapa(r):(r.view==='prestadores'?vPrest():(r.view==='agenda'?vAgenda():(r.view==='fornecedores'?vForn():(r.view==='dre'?vDRE():(r.view==='fluxo'?vFluxo():(r.view==='visao'?vVisao():(r.view==='cadastros'?vCadastros():vPainel()))))))));
   document.body.classList.toggle('ro', !Store.writable);
   app.innerHTML=topbar(r)+banners()+body;
   if(key===lastKey){ window.scrollTo(0,y); var g2=document.querySelector('.gantt-scroll'); if(g2) g2.scrollLeft=ui.ganttScroll; } else { window.scrollTo(0,0); ui.ganttScroll=0; }
-  lastKey=key;
+  lastKey=key; uiPos();
 }
 window.__render=render;
 
@@ -616,7 +619,7 @@ async function exportar(){
 function applyTheme(){ try{ var t=localStorage.getItem('cob.tema'); if(t) document.documentElement.setAttribute('data-theme',t); }catch(e){} }
 function toggleTheme(){
   var cur=document.documentElement.getAttribute('data-theme');
-  if(!cur) cur=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
+  if(!cur) cur='dark';
   var nx=cur==='dark'?'light':'dark'; document.documentElement.setAttribute('data-theme',nx);
   try{ localStorage.setItem('cob.tema',nx); }catch(e){}
 }

@@ -157,7 +157,7 @@ function vgListaEtapasAtraso(A){
 function vgGeral(){
   var obras=vgObras(); if(!obras.length) return '<div class="card empty" style="margin-top:18px"><h3>Nenhuma obra em andamento</h3><p>Cadastre uma obra no painel para ver os indicadores.</p></div>';
   var T=vgTimeline(obras), A=vgAtrasos(obras), h=vgH();
-  return '<div style="margin-top:18px">'+vgLeituraRapida(obras,A)+'</div>'+vgMatrizPrazos(T)+vgProximos(T,h)+vgPorObra(obras)+vgGraficosAvanco(obras)+vgListaEtapasAtraso(A)+vgListaEmExec(obras)
+  return heroVisao()+'<div style="margin-top:18px">'+vgLeituraRapida(obras,A)+'</div>'+vgMatrizPrazos(T)+vgProximos(T,h)+vgPorObra(obras)+vgGraficosAvanco(obras)+vgListaEtapasAtraso(A)+vgListaEmExec(obras)
     +'<div class="dash-h" style="margin-top:26px"><h2>Indicadores (todas as obras em andamento)</h2></div>'+vDashboard();
 }
 

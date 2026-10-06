@@ -9,7 +9,7 @@ import sys, pathlib, hashlib
 
 RAIZ = pathlib.Path(__file__).parent
 SRC = RAIZ / 'src'
-ORDEM = ['logo.js', 'core.js', 'p2.js', 'p3.js', 'p4.js', 'p5.js', 'p7.js', 'gest.js', 'cadastro.js', 'cadastros.js', 'apontamentos.js', 'dash.js', 'fluxo.js', 'visao.js', 'views.js', 'nuvem.js', 'offline.js', 'boot.js']
+ORDEM = ['logo.js', 'core.js', 'p2.js', 'p3.js', 'p4.js', 'p5.js', 'p7.js', 'gest.js', 'cadastro.js', 'cadastros.js', 'apontamentos.js', 'dash.js', 'fluxo.js', 'visao.js', 'ui.js', 'views.js', 'nuvem.js', 'offline.js', 'boot.js']
 
 def ler(nome):
     return (SRC / nome).read_text(encoding='utf-8')
@@ -17,7 +17,7 @@ def ler(nome):
 def montar():
     html = ler('template.html')
     script = ''.join(ler(n) for n in ORDEM)
-    for chave, valor in (('{{STYLE}}', ler('style.css')), ('{{PROTO}}', ler('protocolo.json')), ('{{SCRIPT}}', script)):
+    for chave, valor in (('{{STYLE}}', ler('style.css')+ler('tema-icons.css')+ler('tema.css')), ('{{PROTO}}', ler('protocolo.json')), ('{{SCRIPT}}', script)):
         assert html.count(chave) == 1, chave
         html = html.replace(chave, valor)
     return html
