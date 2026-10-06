@@ -25,8 +25,7 @@ function gaugeHtml(pct,rotulo,sub){
   var ang=-Math.PI/2+2*Math.PI*p/100, ex=(100+R*Math.cos(ang)).toFixed(2), ey=(100+R*Math.sin(ang)).toFixed(2);
   var svg='<svg viewBox="-6 -6 212 212" role="img" aria-label="'+esc(rotulo)+': '+Math.round(p)+'%"><defs><linearGradient id="'+id+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFD08A"/><stop offset=".45" stop-color="#FF9F1C"/><stop offset="1" stop-color="#FF6B35"/></linearGradient><linearGradient id="'+id+'v" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#8B5CF6"/><stop offset="1" stop-color="#C084FC"/></linearGradient><filter id="'+id+'f" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>'
     +t+'<circle cx="100" cy="100" r="'+R+'" fill="none" stroke="var(--line)" stroke-width="12"/>'
-    +'<circle cx="100" cy="100" r="66" fill="none" stroke="url(#'+id+'v)" stroke-width="2.5" stroke-dasharray="6 7" opacity=".75"/>'
-    +'<circle cx="100" cy="100" r="56" fill="none" stroke="var(--line2)" stroke-width="1"/>'
+        +'<circle cx="100" cy="100" r="56" fill="none" stroke="var(--line2)" stroke-width="1"/>'
     +'<circle class="g-arco" cx="100" cy="100" r="'+R+'" fill="none" stroke="url(#'+id+')" stroke-width="12" stroke-linecap="round" transform="rotate(-90 100 100)" filter="url(#'+id+'f)" style="--c:'+C.toFixed(2)+';--to:'+(C-d).toFixed(2)+'"/>'
     +(p>0?'<circle cx="'+ex+'" cy="'+ey+'" r="6.5" fill="#fff" stroke="#FF9F1C" stroke-width="3" filter="url(#'+id+'f)"/>':'')+'</svg>';
   return '<div class="gauge">'+'<div class="g-halo"></div>'+svg+'<div class="g-val"><b>'+Math.round(p)+'%</b><small>'+esc(rotulo)+'</small>'+(sub?'<small style="margin-top:2px;letter-spacing:.04em;text-transform:none;font-weight:500">'+esc(sub)+'</small>':'')+'</div></div>';
@@ -184,7 +183,7 @@ function uiIniciar(){
   try{ if(localStorage.getItem('cob.navmini')==='1') document.body.classList.add('nav-mini'); }catch(e){}
   if(!document.getElementById('gtop')){
     var g=document.createElement('div'); g.id='gtop';
-    g.innerHTML='<button type="button" class="gsearch" data-act="busca-global" aria-label="Buscar (Ctrl K)">Buscar obras, etapas, clientes…<kbd>Ctrl K</kbd></button><button type="button" class="gtop-chip" data-act="tema" aria-label="Alternar tema claro e escuro" data-tip="Tema claro/escuro">◐</button>';
+    g.innerHTML='<button type="button" class="gsearch" data-act="busca-global" aria-label="Buscar (Ctrl K)">Buscar obras, etapas, clientes…<kbd>Ctrl K</kbd></button><button type="button" class="gtop-chip" data-act="tema" aria-label="Alternar tema claro e escuro" data-tip="Tema claro/escuro"></button>';
     document.body.insertBefore(g,document.getElementById('app')||null);
   }
   uiBuscaMontar();

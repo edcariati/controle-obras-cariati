@@ -17,7 +17,7 @@ def ler(nome):
 def montar():
     html = ler('template.html')
     script = ''.join(ler(n) for n in ORDEM)
-    for chave, valor in (('{{STYLE}}', ler('style.css')+ler('tema-icons.css')+ler('tema.css')), ('{{PROTO}}', ler('protocolo.json')), ('{{SCRIPT}}', script)):
+    for chave, valor in (('{{STYLE}}', ler('fontes.css')+ler('style.css')+ler('tema-icons.css')+ler('tema.css')), ('{{PROTO}}', ler('protocolo.json')), ('{{SCRIPT}}', script)):
         assert html.count(chave) == 1, chave
         html = html.replace(chave, valor)
     return html
