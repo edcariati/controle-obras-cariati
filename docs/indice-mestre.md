@@ -13,7 +13,7 @@ Este arquivo é o mapa do projeto: o que foi feito, o que falta, o que depende d
 | Protocolo de Execução de Obra | Fonte das regras: 22 etapas, fichas, indicadores, ritos | https://claude.ai/artifact/EQwMhh1otEqd5fhSP7Yd48 |
 | Documento de desenho do sistema | Especificação, com 14 decisões em aberto | https://claude.ai/code/artifact/2a73cd06-93e3-44c8-bf6c-88a1d6574b7d |
 | Aplicativo original (fases 1 a 3) | Primeira versão, dentro do claude.ai | https://claude.ai/artifact/HqsvWKt2KdZHuHJAcPJkwx |
-| **Código-fonte atual** | App completo (fases 1 a 7C), testes, migrações do banco e documentos | GitHub `edcariati/headroom`, pasta `apps/controle-obras`, branch `claude/relaxed-edison-ruxl3n` |
+| **Código-fonte atual** | App completo (fases 1 a 7C), testes, migrações do banco e documentos | GitHub `edcariati/controle-obras-cariati`, branch `main` |
 | **Demonstração com dados fictícios** | 3 obras de exemplo para clicar e testar; o que você muda não fica salvo | https://claude.ai/artifact/KX38ayue8P6jPpScxjMkXH |
 | **App com banco próprio (uso real, nesta conta)** | Começa vazio; guarda dados, histórico e fotos; compartilhável pelo menu Compartilhar | https://claude.ai/artifact/1Wi6UAdNQrD36Hv6ZXoPap |
 | Projeto Supabase de desenvolvimento | `cariati-obras-dev` (criado por você); o app já aponta para ele em `config.js` | https://uqhdugageaxeghbuapud.supabase.co |
@@ -53,7 +53,7 @@ Este arquivo é o mapa do projeto: o que foi feito, o que falta, o que depende d
 
 ### 2.1 O que está bloqueando agora (em ordem)
 
-1. **Aplicar o banco no Supabase real.** Cole `apps/controle-obras/supabase/aplicar-todas.sql` no editor SQL e depois `primeiro-dono.sql` (troque o e-mail). Passo a passo em `docs/auditoria/criar-projeto-supabase.md`.
+1. **Aplicar o banco no Supabase real.** Cole `supabase/aplicar-todas.sql` no editor SQL e depois `primeiro-dono.sql` (troque o e-mail). Passo a passo em `docs/auditoria/criar-projeto-supabase.md`.
 2. **Liberar a rede do ambiente do Claude Code** para o endereço do seu projeto (`uqhdugageaxeghbuapud.supabase.co`), nas configurações do ambiente. Sem isso, eu não consigo testar contra o projeto real. Os testes de segurança de verdade (login real, Storage real, Realtime real) dependem disso.
 3. **Criar usuários de teste** (um por perfil) em Authentication → Users.
 4. Sua resposta sobre os **índices do 7D** (guias e ajuda dentro do app).
@@ -82,7 +82,7 @@ Ordem original: 4 → 5 → 6 → 7 → 8 → 9 → 10. **Na prática, o caminho
 4. O código manda: se o prompt citar um nome que não existe, o Claude Code registra a diferença.
 5. **Nunca peça para pular testes.**
 6. Guarde `DECISOES.md` e `CHANGELOG.md`: são a memória do projeto.
-7. Para rodar tudo na sua máquina: `cd apps/controle-obras && npm install && npm test` (o teste do banco usa Postgres local: `npm run test:rls`).
+7. Para rodar tudo na sua máquina: `npm install && npm test` (o teste do banco usa Postgres local: `npm run test:rls`).
 8. **Se o Claude Code sair do combinado**, peça para reler a seção “Seu papel e regras de trabalho” do prompt.
 
 **Ao colar um prompt novo**, avise se alguma fase anterior não estiver completa: o Claude Code deve dizer o que falta antes de começar (foi o que aconteceu com as fases 8, 9 e 10).

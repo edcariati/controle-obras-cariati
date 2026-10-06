@@ -39,7 +39,7 @@ Na tela **Nuvem**, depois de entrar:
 ## Rodar no computador
 
 ```sh
-cd apps/controle-obras
+cd controle-obras-cariati
 python3 -m http.server 8000
 # abra http://localhost:8000
 ```

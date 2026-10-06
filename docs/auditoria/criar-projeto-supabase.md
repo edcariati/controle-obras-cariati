@@ -12,8 +12,8 @@ Em **Authentication → Sign In / Providers**: **desligue** “Allow new users t
 
 ## 3. Criar as tabelas e regras (uma vez)
 1. Abra **SQL Editor → New query**.
-2. Cole **todo** o conteúdo de `apps/controle-obras/supabase/aplicar-todas.sql` e clique **Run**. Deve terminar sem erro.
-3. Cole `apps/controle-obras/supabase/primeiro-dono.sql`, **troque o e-mail** pelo seu e clique **Run**. Você vira a diretoria (`dono`).
+2. Cole **todo** o conteúdo de `supabase/aplicar-todas.sql` e clique **Run**. Deve terminar sem erro.
+3. Cole `supabase/primeiro-dono.sql`, **troque o e-mail** pelo seu e clique **Run**. Você vira a diretoria (`dono`).
 4. (Opcional agora) Para o motor de avisos: em **Database → Extensions**, ative `pg_cron` e rode os comandos comentados no fim das migrações 0003 e 0004.
 
 ## 4. O que me passar (pode colar aqui no chat)
