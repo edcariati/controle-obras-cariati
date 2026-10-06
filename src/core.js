@@ -529,10 +529,19 @@ async function uploadAnexos(files){
 
 function openForm(cfg){
   var flat=[]; (cfg.fields||[]).forEach(function(f){ if(Array.isArray(f)) f.forEach(function(x){ flat.push(x); }); else flat.push(f); });
-  var body=(cfg.fields||[]).map(function(f){ return Array.isArray(f)?'<div class="fld2">'+f.map(fldHtml).join('')+'</div>':fldHtml(f); }).join('');
+  var tops=(cfg.fields||[]), nPass=0;
+  var one=function(f){ return Array.isArray(f)?'<div class="fld2">'+f.map(fldHtml).join('')+'</div>':fldHtml(f); };
+  var body, passosHtml='';
+  if(tops.length>=6 && !cfg.semPassos && !cfg.wide){
+    nPass=Math.ceil(tops.length/4); var tam=Math.ceil(tops.length/nPass), grupos=[];
+    for(var gi=0;gi<nPass;gi++) grupos.push(tops.slice(gi*tam,(gi+1)*tam));
+    nPass=grupos.length;
+    body=grupos.map(function(g,i){ return '<fieldset class="step" data-step="'+i+'"'+(i?' hidden':'')+'>'+g.map(one).join('')+'</fieldset>'; }).join('');
+    passosHtml='<ol class="steps" aria-label="Etapas do formulário">'+grupos.map(function(g,i){ var t=(cfg.steps&&cfg.steps[i])||('Parte '+(i+1)); return '<li data-sp="'+i+'"'+(i===0?' class="on" aria-current="step"':'')+'><i></i>'+(i+1)+'. '+esc(t)+'</li>'; }).join('')+'</ol>';
+  } else body=tops.map(one).join('');
   var html='<form id="dform"><div class="dlg-h"><h2>'+esc(cfg.title)+'</h2><button type="button" class="btn ghost ico" data-close aria-label="Fechar">✕</button></div>'
-    +'<div class="dlg-b">'+(cfg.intro?'<p class="muted small" style="margin-bottom:14px">'+cfg.intro+'</p>':'')+body+'<div class="err-msg hide" id="derr" role="alert"></div></div>'
-    +'<div class="dlg-f">'+(cfg.extra||'')+'<button type="button" class="btn" data-close>Cancelar</button><button type="submit" class="btn primary" id="dsub">'+esc(cfg.submit||'Salvar')+'</button></div></form>';
+    +'<div class="dlg-b">'+passosHtml+(cfg.intro?'<p class="muted small" style="margin-bottom:14px">'+cfg.intro+'</p>':'')+body+'<div class="err-msg hide" id="derr" role="alert"></div></div>'
+    +'<div class="dlg-f">'+(cfg.extra||'')+'<button type="button" class="btn" data-close id="dcan">Cancelar</button>'+(nPass?'<button type="button" class="btn hide" id="dback">Voltar</button><button type="button" class="btn primary" id="dnext">Continuar</button>':'')+'<button type="submit" class="btn primary'+(nPass?' hide':'')+'" id="dsub">'+esc(cfg.submit||'Salvar')+'</button></div></form>';
   var d=openDlg(html, cfg.wide);
   var form=$('#dform',d), photos={};
   flat.forEach(function(f){ if(f.type==='photos') photos[f.name]=(f.value||[]).slice(); });
@@ -551,6 +560,22 @@ function openForm(cfg){
     var del=e.target.closest('[data-delrow]');
     if(del){ var row=del.closest('.efet-row'); if(row.parentNode.children.length>1) row.remove(); }
   });
+  if(nPass){
+    var cur=0;
+    var ir=function(n){
+      cur=n; Array.prototype.forEach.call(form.querySelectorAll('fieldset.step'),function(fs){ fs.hidden=Number(fs.dataset.step)!==n; });
+      Array.prototype.forEach.call(form.querySelectorAll('.steps li'),function(li){ var i=Number(li.dataset.sp); li.classList.toggle('on',i<=n); if(i===n) li.setAttribute('aria-current','step'); else li.removeAttribute('aria-current'); });
+      var ult=n===nPass-1; $('#dnext',form).classList.toggle('hide',ult); $('#dsub',form).classList.toggle('hide',!ult); $('#dback',form).classList.toggle('hide',n===0); $('#dcan',form).classList.toggle('hide',n>0);
+      var f1=form.querySelector('fieldset.step[data-step="'+n+'"] input:not([type=hidden]),fieldset.step[data-step="'+n+'"] select,fieldset.step[data-step="'+n+'"] textarea'); if(f1) try{ f1.focus(); }catch(e){}
+    };
+    $('#dnext',form).addEventListener('click',function(){
+      var fs=form.querySelector('fieldset.step[data-step="'+cur+'"]'), campos=fs.querySelectorAll('input,select,textarea');
+      for(var i=0;i<campos.length;i++){ if(campos[i].checkValidity&&!campos[i].checkValidity()){ campos[i].reportValidity&&campos[i].reportValidity(); return; } }
+      ir(cur+1);
+    });
+    $('#dback',form).addEventListener('click',function(){ ir(cur-1); });
+    form.addEventListener('keydown',function(e){ if(e.key==='Enter'&&cur<nPass-1&&e.target.tagName!=='TEXTAREA'){ e.preventDefault(); $('#dnext',form).click(); } });
+  }
   form.addEventListener('submit', async function(e){
     e.preventDefault();
     var err=$('#derr',form), btn=$('#dsub',form);

@@ -43,7 +43,7 @@ function sparkHtml(vals){
   return '<svg class="spark" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" aria-hidden="true"><path d="M'+pts.map(function(p){ return p.join(','); }).join(' L')+'"/></svg>';
 }
 function heroHtml(o){
-  return '<section class="card hero"><div>'+gaugeHtml(o.pct,o.rotulo,o.sub)+'</div><div><div class="hero-t">'+esc(o.eyebrow||'')+'</div><h2>'+esc(o.titulo)+'</h2>'+(o.texto?'<p>'+esc(o.texto)+'</p>':'')+'<div class="hero-rings">'+(o.orbes||[]).join('')+'</div>'+(o.extra||'')+'</div></section>';
+  return '<section class="card hero"><i class="br tl"></i><i class="br tr"></i><i class="br bl"></i><i class="br brr"></i><div>'+gaugeHtml(o.pct,o.rotulo,o.sub)+'</div><div><div class="hero-t">'+esc(o.eyebrow||'')+'</div><h2>'+esc(o.titulo)+'</h2>'+(o.texto?'<p>'+esc(o.texto)+'</p>':'')+'<div class="hero-rings">'+(o.orbes||[]).join('')+'</div>'+(o.extra||'')+'</div></section>';
 }
 
 /* ---------- faixas de destaque por tela (só percentuais e contagens, nunca valores em R$) ---------- */

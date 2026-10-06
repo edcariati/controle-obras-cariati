@@ -25,8 +25,8 @@ function topbar(r){
   var cur=function(v){ return r.view===v?' aria-current="page"':''; };
   var obraAtiva=(r.view==='obra'||r.view==='etapa'), cli=Store.papel==='cliente';
   var nav=cli?'<a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Minha obra</a>'
-    :'<a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a>'+(Store.papel==='campo'?'':'<a href="#/cadastros"'+cur('cadastros')+'>Cadastros</a>')+'<a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>';
-  return '<header class="top"><div class="top-in"><a class="brand" href="#/painel" aria-label="Cariati Obras, início"><img class="brand-logo" src="'+LOGO+'" alt="Cariati Arquitetura &amp; Gestão" width="56" height="44"><span class="brand-t">Obras</span></a>'
+    :'<span class="nav-sec">Gestão</span><a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a>'+(Store.papel==='campo'?'':'<a href="#/cadastros"'+cur('cadastros')+'>Cadastros</a>')+'<span class="nav-sec">Operação</span><a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><span class="nav-sec">Relatórios</span><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a><span class="nav-sec">Sistema</span>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>';
+  return '<header class="top"><div class="top-in"><a class="brand" href="#/painel" aria-label="Cariati Obras, início"><img class="brand-logo" src="'+LOGO+'" alt="Cariati Arquitetura &amp; Gestão" width="56" height="44"><span class="brand-t">Controle de obras</span></a>'
     +(cli?'':'<button type="button" class="btn primary side-new" data-act="obra-nova" data-write aria-label="Nova obra">+ <b>Nova obra</b></button>')
     +'<nav class="nav" aria-label="Principal">'+nav+'</nav>'+(cli?'':sideFav())
     +'<button type="button" class="nav-more" data-act="nav-mais" aria-haspopup="dialog">Mais</button>'
@@ -322,7 +322,7 @@ function etapaOptions(blank){ return selOpts(ETAPAS.map(function(e){ return [Str
 function obraForm(o){
   var novo=!o; ensureEmpresas();
   openForm({
-    title:novo?'Nova obra':'Editar obra', submit:novo?'Cadastrar obra':'Salvar',
+    title:novo?'Nova obra':'Editar obra', submit:novo?'Cadastrar obra':'Salvar', steps:['Identificação','Contrato','Metas'],
     fields:[
       {name:'nome',label:'Nome da obra',required:true,value:o&&o.nome,ph:'Ex.: Casa Silva'},
       [{name:'codigo',label:'Código',value:o&&o.codigo,ph:'CA000000'},{name:'cliente',label:'Cliente',value:o&&o.cliente}],
