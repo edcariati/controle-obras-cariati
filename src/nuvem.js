@@ -4,7 +4,7 @@ var hist={rows:null, carregando:false, erro:'', obra:'', colecao:''};
 
 function vLogin(){
   var c=Supa.cfg||{};
-  return '<div class="wrap"><div class="login"><p class="brand" style="font-size:22px;margin-bottom:14px">Cariati<span>·Obras</span></p>'
+  return '<div class="wrap"><div class="login"><p class="brand" style="font-size:22px;margin-bottom:14px"><img class="brand-logo" src="'+LOGO+'" alt="Cariati Arquitetura &amp; Gestão" width="115" height="90" style="height:90px"><span class="brand-t">Obras</span></p>'
     +'<form class="card" id="flogin"><h2 style="margin-bottom:6px">Entrar</h2><p class="muted small" style="margin-bottom:16px">Use o e-mail e a senha cadastrados pela Cariati.</p>'+(Store.avisoCacheVelho?'<div class="callout warn" style="margin-bottom:12px"><strong>Os dados guardados neste aparelho têm mais de '+OFF_VALIDADE_DIAS+' dias sem sincronizar.</strong> Conecte-se à internet e entre para atualizar. As alterações que você fez offline continuam guardadas.</div>':'')
     +'<div class="fld"><label for="lg_e">E-mail</label><input id="lg_e" name="email" type="email" autocomplete="username" required></div>'
     +'<div class="fld"><label for="lg_s">Senha</label><input id="lg_s" name="senha" type="password" autocomplete="current-password" required></div>'
@@ -72,7 +72,7 @@ async function carregarHist(){
   hist.carregando=false; scheduleRender();
 }
 function vSemAcesso(){
-  return '<div class="wrap"><div class="login"><p class="brand" style="font-size:22px;margin-bottom:14px">Cariati<span>·Obras</span></p><div class="card empty"><h3>Seu acesso ainda não foi liberado</h3><p>Você entrou como '+esc(Supa.email())+', mas a diretoria ainda não definiu o seu perfil. Fale com a Cariati.</p><button class="btn" data-act="nuvem-sair">Sair</button></div></div></div>';
+  return '<div class="wrap"><div class="login"><p class="brand" style="font-size:22px;margin-bottom:14px"><img class="brand-logo" src="'+LOGO+'" alt="Cariati Arquitetura &amp; Gestão" width="115" height="90" style="height:90px"><span class="brand-t">Obras</span></p><div class="card empty"><h3>Seu acesso ainda não foi liberado</h3><p>Você entrou como '+esc(Supa.email())+', mas a diretoria ainda não definiu o seu perfil. Fale com a Cariati.</p><button class="btn" data-act="nuvem-sair">Sair</button></div></div></div>';
 }
 function vHistorico(){
   if(Store.backend!=='supabase') return '<div class="wrap"><div class="card empty"><h3>Histórico disponível na nuvem</h3><p>Conecte o aplicativo ao Supabase para registrar quem alterou o quê. <a href="#/nuvem">Conectar</a></p></div></div>';

@@ -59,8 +59,10 @@ button{font:inherit;color:inherit}
 /* barra superior */
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
 .top-in{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:16px}
-.brand{font-family:var(--f-head);font-weight:700;font-size:18px;letter-spacing:.01em;color:var(--ink);white-space:nowrap}
+.brand{font-family:var(--f-head);font-weight:700;font-size:18px;letter-spacing:.01em;color:var(--ink);white-space:nowrap;display:inline-flex;align-items:center;gap:10px}
 .brand span{color:var(--steel)}
+.brand-logo{height:44px;width:auto;border-radius:6px;display:block}
+.rel-logo{height:84px;width:auto;border-radius:6px;display:block;margin-bottom:10px}
 .nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 .nav a{font-family:var(--f-head);font-weight:600;font-size:16px;color:var(--ink2);padding:6px 12px;border-radius:4px;white-space:nowrap}
 .nav a:hover{text-decoration:none;background:var(--surface2)}

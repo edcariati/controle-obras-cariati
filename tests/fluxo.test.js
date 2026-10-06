@@ -19,7 +19,7 @@ test('fluxo · com obra mostra o status por etapa e escapa o nome', async () => 
   const seed = { obras: { o1: obra({ nome: '<img src=x onerror=alert(1)>' }) } };
   const e = await abrir({ seed, hash: '#/fluxo/o1/3' });
   assert.equal(e.doc.querySelectorAll('#app .flx-no').length, 22);
-  assert.equal(e.doc.querySelector('#app img'), null);
+  assert.equal(e.doc.querySelector('#app img[src="x"]'), null);
   assert.match(e.app(), /Abrir na obra/);
 });
 

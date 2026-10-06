@@ -97,6 +97,6 @@ test('visão geral · prazos agrupa por faixa de 7, 15, 30, 90 e 120 dias', asyn
 test('visão geral · texto do usuário é escapado', async () => {
   const xss = '<img src=x onerror=alert(1)>';
   const e = await abrir({ seed: seed({ obras: { o1: obraAdm({ nome: xss, inicio: dia(-60) }) } }), hash: '#/visao' });
-  assert.equal(e.doc.querySelector('#app img'), null);
-  await e.go('#/visao/compras'); assert.equal(e.doc.querySelector('#app img'), null);
+  assert.equal(e.doc.querySelector('#app img[src="x"]'), null);
+  await e.go('#/visao/compras'); assert.equal(e.doc.querySelector('#app img[src="x"]'), null);
 });

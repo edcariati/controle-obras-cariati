@@ -25,7 +25,7 @@ function topbar(r){
   var obraAtiva=(r.view==='obra'||r.view==='etapa'), cli=Store.papel==='cliente';
   var nav=cli?'<a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Minha obra</a>'
     :'<a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a><a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>';
-  return '<header class="top"><div class="top-in"><a class="brand" href="#/painel">Cariati<span>·Obras</span></a>'
+  return '<header class="top"><div class="top-in"><a class="brand" href="#/painel" aria-label="Cariati Obras, início"><img class="brand-logo" src="'+LOGO+'" alt="Cariati Arquitetura &amp; Gestão" width="56" height="44"><span class="brand-t">Obras</span></a>'
     +'<nav class="nav" aria-label="Principal">'+nav+'</nav>'
     +'<div class="tools">'+sinoAvisos(r)+(cli?'<button class="btn ghost sm" data-act="nuvem-sair">Sair</button>':'<button class="btn ghost sm" data-act="exportar" title="Baixar uma cópia dos dados">Exportar</button>')+'<button class="btn ghost sm" data-act="tema" title="Alternar tema claro e escuro" aria-label="Alternar tema">◐</button></div></div></header>';
 }

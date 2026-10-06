@@ -180,7 +180,7 @@ test('fora do escopo · compra fora do escopo não emite pedido sem aditivo', as
 test('pedido de pagamento · texto do usuário é escapado', async () => {
   const xss = '<img src=x onerror=alert(1)>';
   const e = await abrir({ seed: { obras: { o1: obraAdm() }, pedidosPag: { p1: ped({ descricao: xss, orcamentos: [{ id: 'a', favorecido: xss, valor: 10 }] }) } }, hash: '#/obra/o1/pedidos' });
-  assert.equal(e.doc.querySelector('#app img'), null);
+  assert.equal(e.doc.querySelector('#app img[src="x"]'), null);
   await e.click('[data-act="ped-abrir"][data-id="p1"]');
   assert.equal(e.doc.querySelector('#dlg img'), null);
 });
