@@ -144,14 +144,14 @@ function kcardEtapa(o,e){
   var cr=byObra('ocorrencias',o.id).filter(function(x){ return x.etapa===e.n&&x.gravidade==='critica'&&ocAberta(x); }).length;
   var back=i>0?'<button class="btn sm" data-act="etapa-mover" data-oid="'+o.id+'" data-n="'+e.n+'" data-to="'+STATUS_ORDER[i-1]+'" data-write>← Voltar</button>':'';
   var fwd=i<3?'<button class="btn sm primary" data-act="etapa-mover" data-oid="'+o.id+'" data-n="'+e.n+'" data-to="'+STATUS_ORDER[i+1]+'" data-write>'+(i===0?'Iniciar':(i===1?'Vistoria':'Liberar'))+' →</button>':'';
-  return '<div class="kcard'+(cr?' crit':'')+'"><a class="t" href="#/obra/'+o.id+'/etapa/'+e.n+'">'+e.n+'. '+esc(e.nome)+'</a><div class="m"><span class="chip">'+res.aprov+'/'+res.total+' fichas</span>'+(res.rep?'<span class="chip crit">'+res.rep+' reprovada'+(res.rep>1?'s':'')+'</span>':'')+(cr?'<span class="chip crit">Crítica aberta</span>':'')+'</div><div class="mv">'+back+fwd+'</div></div>';
+  return '<div class="kcard'+(cr?' crit':'')+'"><a class="t" href="#/obra/'+o.id+'/etapa/'+e.n+'">'+e.n+'. '+esc(e.nome)+'</a><div class="m"><span class="chip">'+res.aprov+'/'+res.total+' fichas</span>'+(res.rep?'<span class="chip crit">'+res.rep+' reprovada'+(res.rep>1?'s':'')+'</span>':'')+(cr?'<span class="chip crit">Crítica aberta</span>':'')+kcardExtra(o.id,e.n)+'</div>'+kcardBarra(o.id,e.n)+'<div class="mv">'+back+fwd+'</div></div>';
 }
-function tEtapas(o){
+function tEtapasQuadro(o){
   var cols=STATUS_ORDER.map(function(st){
     var es=ETAPAS.filter(function(e){ return etapaDoc(o.id,e.n).status===st; });
     return '<section class="col"><header>'+STATUS[st]+' <span class="n num">'+es.length+'</span></header><div class="cards">'+(es.length?es.map(function(e){ return kcardEtapa(o,e); }).join(''):'<p class="muted small" style="padding:8px 4px">Nenhuma etapa</p>')+'</div></section>';
   }).join('');
-  return '<p class="muted small" style="margin-bottom:12px">O quadro segue o protocolo: uma etapa só começa com a anterior liberada em vistoria, e só é liberada com todas as fichas aprovadas e sem ocorrência crítica aberta.</p><div class="board">'+cols+'</div>';
+  return '<div class="board">'+cols+'</div>';
 }
 
 /* ---- cronograma (Gantt) ---- */
@@ -269,6 +269,7 @@ function vEtapa(r){
     +'<div class="grid cols2 sec">'
     +'<section class="card"><div class="card-h"><h2>Ficha de verificação</h2></div>'+fichas+'</section>'
     +'<div class="stack"><section class="card"><div class="card-h"><h2>Condições de liberação</h2></div><div class="pad"><p>'+esc(lc)+'</p><label class="row" style="margin-top:12px;gap:8px;cursor:pointer"><input type="checkbox" data-chg="cond" data-oid="'+oid+'" data-n="'+r.n+'"'+(e.condicoesOk?' checked':'')+' style="width:20px;height:20px"> <span>Conferi estas condições em campo</span></label></div></section>'
+    +apontCard(oid,r.n)+conclCard(oid,r.n,e.status)
     +'<section class="card"><div class="card-h"><h2>Ocorrências da etapa</h2><button class="btn sm" data-act="oc-nova" data-oid="'+oid+'" data-n="'+r.n+'" data-write>+ Ocorrência</button></div>'+ocHtml+'</section>'
     +'<section class="card"><div class="card-h"><h2>Atividades da etapa</h2><button class="btn sm" data-act="ativ-nova" data-oid="'+oid+'" data-n="'+r.n+'" data-write>+ Atividade</button></div>'+atHtml+'</section></div></div>'
     +'<details class="card ex sec" data-k="itens'+r.n+'"'+(ui.det['itens'+r.n]?' open':'')+'><summary>O que esta etapa exige (protocolo)</summary><ul>'+itens+'</ul></details>'
@@ -380,6 +381,7 @@ async function moverEtapa(oid,n,to){
   if(to!=='liberada') delete upd.liberadaEm;
   await Store.set('etapas', e.id, upd);
   toast('Etapa '+n+': '+STATUS[to].toLowerCase()+'.');
+  if(to==='liberada'&&!etapaConcl(oid,n)) setTimeout(function(){ conclusaoForm(oid,n,true); },250);
 }
 
 function fichaForm(oid,n,i){

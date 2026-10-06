@@ -56,11 +56,21 @@ function vFluxo(){
       +'<p><strong>Objetivo.</strong> '+esc(e.objetivo||'')+'</p>'
       +'<p class="flx-lib"><span class="flx-losango" aria-hidden="true"></span><span><strong>Só libera quando:</strong> '+esc(e.liberacao||'')+'</span></p>'
       +(o&&gVe()?fluxoMetaEtapa(o.id,sel):'')
+      +(o?fluxoApont(o.id,sel):'')
       +(fr?'<p class="muted small">Fichas de verificação desta obra: '+fr.aprov+' aprovadas de '+fr.total+(fr.rep?' · '+fr.rep+' reprovada(s)':'')+(fr.pend?' · '+fr.pend+' sem inspeção':'')+'.</p>':'')
       +'<div class="flx-cols"><div><h3>O que se executa ('+it.length+')</h3><ul class="lst">'+it.slice(0,12).map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('')+(it.length>12?'<li class="muted">e mais '+(it.length-12)+' itens</li>':'')+'</ul></div>'
       +'<div><h3>O que se verifica ('+vf.length+')</h3><ul class="lst">'+vf.map(function(x){ return '<li>'+esc(x.item||x)+'</li>'; }).join('')+'</ul></div></div></div></section>';
   }
   return h+'</div>';
+}
+function fluxoApont(oid,n){
+  var l=etapaApont(oid,n), c=etapaConcl(oid,n), pend=apontPendentes(oid,n), h='';
+  if(!l.length&&!c) return '<p class="muted small">Nenhum apontamento nem conclusão registrados nesta etapa. <a href="#/obra/'+oid+'/etapa/'+n+'">Abrir a etapa</a></p>';
+  h+='<div class="small"><strong>Apontamentos:</strong> '+plural(l.length,'registro','registros')+(pend.length?' · <span class="chip warn">'+plural(pend.length,'pendência aberta','pendências abertas')+'</span>':'');
+  if(l[0]) h+='<div class="muted" style="margin-top:4px">Último ('+fmt((l[0].data||'').slice(0,10))+', '+esc(APONT_TIPO[l[0].tipo]||'')+'): '+esc(short(l[0].texto,160))+'</div>';
+  h+='</div>';
+  if(c) h+='<div class="small" style="margin-top:8px"><strong>Conclusão:</strong> <span class="chip '+CONCL_RES[c.resultado][0]+'">'+CONCL_RES[c.resultado][1]+'</span> '+esc(short(c.resumo,200))+'</div>';
+  return '<div style="margin:8px 0">'+h+' <a class="small" href="#/obra/'+oid+'/etapa/'+n+'">Abrir a etapa</a></div>';
 }
 function fluxoMetaEtapa(oid,n){
   var l=metaEvo(oid).linhas.filter(function(x){ return x.n===n; })[0]; if(!l) return '';
