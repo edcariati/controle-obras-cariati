@@ -14,6 +14,7 @@ function parseRoute(){
   if(p[0]==='dre') return {view:'dre'};
   if(p[0]==='fluxo') return {view:'fluxo'};
   if(p[0]==='visao') return {view:'visao'};
+  if(p[0]==='cadastros') return {view:'cadastros'};
   if(p[0]==='nuvem') return {view:'nuvem'};
   if(p[0]==='historico') return {view:'historico'};
   if(p[0]==='avisos') return {view:'avisos'};
@@ -24,7 +25,7 @@ function topbar(r){
   var cur=function(v){ return r.view===v?' aria-current="page"':''; };
   var obraAtiva=(r.view==='obra'||r.view==='etapa'), cli=Store.papel==='cliente';
   var nav=cli?'<a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Minha obra</a>'
-    :'<a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a><a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>';
+    :'<a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a>'+(Store.papel==='campo'?'':'<a href="#/cadastros"'+cur('cadastros')+'>Cadastros</a>')+'<a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>';
   return '<header class="top"><div class="top-in"><a class="brand" href="#/painel" aria-label="Cariati Obras, início"><img class="brand-logo" src="'+LOGO+'" alt="Cariati Arquitetura &amp; Gestão" width="56" height="44"><span class="brand-t">Obras</span></a>'
     +'<nav class="nav" aria-label="Principal">'+nav+'</nav>'
     +'<div class="tools">'+sinoAvisos(r)+(cli?'<button class="btn ghost sm" data-act="nuvem-sair">Sair</button>':'<button class="btn ghost sm" data-act="exportar" title="Baixar uma cópia dos dados">Exportar</button>')+'<button class="btn ghost sm" data-act="tema" title="Alternar tema claro e escuro" aria-label="Alternar tema">◐</button></div></div></header>';
@@ -59,7 +60,7 @@ function legenda(){
 
 /* ---- painel ---- */
 function vPainel(){
-  var obras=L('obras').sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
+  var obras=L('obras').filter(function(o){ return o.situacao!=='cancelada'; }).sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
   var alerts=[];
   obras.forEach(function(o){ alertasObra(o).forEach(function(a){ alerts.push(Object.assign({obra:o.nome},a)); }); });
   L('prestadores').forEach(function(p){
@@ -91,7 +92,7 @@ function vObra(r){
   var mapa=abaMapa(), tab=mapa[r.tab]?r.tab:(mapa.resumo?'resumo':'chamados'), fn=mapa[tab];
   var meta=[o.cliente, o.endereco, o.tipologia, o.area?o.area+' m²':'', o.inicio?'início em '+fmt(o.inicio):''].filter(Boolean).map(esc).join(' · ');
   return '<div class="wrap"><a class="back" href="#/painel">← Todas as obras</a>'
-    +'<div class="ob-head"><div class="grow"><h1>'+esc(o.nome)+(o.codigo?' <span class="muted small num">'+esc(o.codigo)+'</span>':'')+'</h1><div class="meta">'+chipMod(o.modalidade)+(o.situacao==='encerrada'?'<span class="chip ok">Encerrada em '+fmt(o.encerradaEm)+'</span>':'')+'<span>'+meta+'</span></div></div>'
+    +'<div class="ob-head"><div class="grow"><h1>'+esc(o.nome)+(o.codigo?' <span class="muted small num">'+esc(o.codigo)+'</span>':'')+'</h1><div class="meta">'+chipMod(o.modalidade)+(o.situacao==='cancelada'?'<span class="chip crit">Cancelada'+(o.canceladaEm?' em '+fmt(o.canceladaEm):'')+'</span>':'')+(o.situacao==='encerrada'?'<span class="chip ok">Encerrada em '+fmt(o.encerradaEm)+'</span>':'')+'<span>'+meta+'</span></div></div>'
     +'<div class="row"><button class="btn" data-act="obra-editar" data-oid="'+o.id+'" data-write>Editar obra</button></div></div>'
     +(ehCliente()?'':'<div class="no-print" style="margin-top:20px">'+regua(o.id,false)+legenda()+'</div>')
     +obraNav(o,tab)
@@ -135,7 +136,7 @@ function tResumo(o){
   var maxB=Math.max.apply(null,bands.map(function(b){return ab.filter(function(x){var i=idadeOc(x);return i>=b[1]&&i<=b[2];}).length;}).concat([1]));
   var agingHtml=ab.length?bands.map(function(b){ var n=ab.filter(function(x){var i=idadeOc(x);return i>=b[1]&&i<=b[2];}).length; return '<div class="hbar"><span>'+b[0]+'</span><div class="t"><i style="width:'+Math.round(n/maxB*100)+'%;background:'+(b[1]>=8?'var(--crit)':'var(--steel)')+'"></i></div><span class="num">'+n+'</span></div>'; }).join(''):'<p class="muted small" style="padding:0 16px">Nenhum apontamento aberto.</p>';
   var agingCard='<section class="card"><div class="card-h"><h2>Idade dos apontamentos abertos</h2></div><div style="padding:10px 0">'+agingHtml+'</div></section>';
-  return '<div class="stack">'+alHtml+resumoProximos(o)+'<div class="grid cols2"><div class="stack">'+tbl+'</div><div class="stack">'+ppcCard+causasCard+agingCard+'</div></div></div>';
+  return '<div class="stack">'+cadAviso(o)+alHtml+resumoProximos(o)+'<div class="grid cols2"><div class="stack">'+tbl+'</div><div class="stack">'+ppcCard+causasCard+agingCard+'</div></div></div>';
 }
 
 function kcardEtapa(o,e){
@@ -299,7 +300,7 @@ function render(){
     app.innerHTML=topbar(r)+banners()+(r.view==='nuvem'?vNuvem():(r.view==='avisos'?vAvisos():(r.view==='pendencias'?vPendencias():vHistorico())));
     if(key!==lastKey) window.scrollTo(0,0); lastKey=key; return;
   }
-  var body=r.view==='obra'?vObra(r):(r.view==='etapa'?vEtapa(r):(r.view==='prestadores'?vPrest():(r.view==='agenda'?vAgenda():(r.view==='fornecedores'?vForn():(r.view==='dre'?vDRE():(r.view==='fluxo'?vFluxo():(r.view==='visao'?vVisao():vPainel())))))));
+  var body=r.view==='obra'?vObra(r):(r.view==='etapa'?vEtapa(r):(r.view==='prestadores'?vPrest():(r.view==='agenda'?vAgenda():(r.view==='fornecedores'?vForn():(r.view==='dre'?vDRE():(r.view==='fluxo'?vFluxo():(r.view==='visao'?vVisao():(r.view==='cadastros'?vCadastros():vPainel()))))))));
   document.body.classList.toggle('ro', !Store.writable);
   app.innerHTML=topbar(r)+banners()+body;
   if(key===lastKey){ window.scrollTo(0,y); var g2=document.querySelector('.gantt-scroll'); if(g2) g2.scrollLeft=ui.ganttScroll; } else { window.scrollTo(0,0); ui.ganttScroll=0; }
@@ -310,7 +311,7 @@ window.__render=render;
 /* ================= AÇÕES ================= */
 function selOpts(list, blank){ return (blank?[['',blank]]:[]).concat(list); }
 function prestOptions(blank){
-  return selOpts(L('prestadores').sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'');}).map(function(p){ return [p.id, p.nome+(prestBloqueado(p)?' — seguro ou treinamento vencido':''), prestBloqueado(p)]; }), blank);
+  return selOpts(cdSoAtivos(L('prestadores')).sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'');}).map(function(p){ return [p.id, p.nome+(prestBloqueado(p)?' — seguro ou treinamento vencido':''), prestBloqueado(p)]; }), blank);
 }
 function etapaOptions(blank){ return selOpts(ETAPAS.map(function(e){ return [String(e.n), e.n+'. '+e.nome]; }), blank); }
 
@@ -335,7 +336,7 @@ function obraForm(o){
       var data=Object.assign({}, o||{}, {nome:v.nome.trim(), codigo:v.codigo||'', cliente:v.cliente||'', endereco:v.endereco||'', tipologia:v.tipologia, modalidade:v.modalidade, area:v.area, inicio:v.inicio||'', metaPPC:v.metaPPC==null?80:v.metaPPC, diasEscalar:v.diasEscalar==null?7:v.diasEscalar, alcada:v.alcada, margemPreco:v.margemPreco==null?5:v.margemPreco, empresaId:v.empresaId||'', tolerAvanco:v.tolerAvanco==null?5:v.tolerAvanco, abcA:v.abcA==null?80:v.abcA, abcB:v.abcB==null?95:v.abcB});
       if(novo) data.criadoEm=new Date().toISOString();
       var id=novo?nid():o.id; await Store.set('obras', id, data);
-      if(novo) location.hash='#/obra/'+id+'/resumo';
+      if(novo) location.hash='#/obra/'+id+'/cadastro';
     }
   });
 }

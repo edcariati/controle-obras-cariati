@@ -1,7 +1,7 @@
 /* ================= FASE 5 ================= */
 /* ---------- navegação da obra: grupos e subabas ---------- */
 var NAV_GRUPOS=[
-  ['geral','Visão geral',['resumo']],
+  ['geral','Resumo e cadastro',['resumo','cadastro']],
   ['plan','Planejamento',['etapas','cronograma','balanco','semana']],
   ['exec','Execução e qualidade',['diario','ocorrencias','entrega','projeto']],
   ['sup','Suprimentos',['compras','estoque','locacoes']],
@@ -11,15 +11,15 @@ var NAV_GRUPOS=[
   ['pos','Pós-obra',['garantias','chamados','visitas','satisfacao']],
   ['enc','Encerramento',['encerramento']]
 ];
-var NAV_ROTULO={resumo:'Resumo', etapas:'Etapas', cronograma:'Cronograma', balanco:'Balanço', semana:'Semana e PPC', diario:'Diário', ocorrencias:'Ocorrências', entrega:'Pré-entrega', projeto:'RFI e materiais', compras:'Compras', estoque:'Estoque', locacoes:'Locações', contratos:'Contratos e frentes', avaliacoes:'Avaliações', orcamento:'Orçamento', medicao:'Medição', financeiro:'Financeiro', fisfin:'Físico-financeiro', dre:'DRE', agenda:'Agenda', reunioes:'Reuniões', documentos:'Documentos', relatorio:'Relatório mensal', quinzenal:'Relatório quinzenal', pedidos:'Pedidos de pagamento', pagprazos:'Pagamentos e prazos', metaevo:'Meta × evolução', encerramento:'Encerramento e P0', garantias:'Garantias', chamados:'Chamados', visitas:'Visitas', satisfacao:'Satisfação'};
+var NAV_ROTULO={resumo:'Resumo', etapas:'Etapas', cronograma:'Cronograma', balanco:'Balanço', semana:'Semana e PPC', diario:'Diário', ocorrencias:'Ocorrências', entrega:'Pré-entrega', projeto:'RFI e materiais', compras:'Compras', estoque:'Estoque', locacoes:'Locações', contratos:'Contratos e frentes', avaliacoes:'Avaliações', orcamento:'Orçamento', medicao:'Medição', financeiro:'Financeiro', fisfin:'Físico-financeiro', dre:'DRE', agenda:'Agenda', reunioes:'Reuniões', documentos:'Documentos', relatorio:'Relatório mensal', cadastro:'Cadastro', quinzenal:'Relatório quinzenal', pedidos:'Pedidos de pagamento', pagprazos:'Pagamentos e prazos', metaevo:'Meta × evolução', encerramento:'Encerramento e P0', garantias:'Garantias', chamados:'Chamados', visitas:'Visitas', satisfacao:'Satisfação'};
 function abaMapa(){
   var m=abaMapaTodas();
-  if(Store.papel==='campo'){ ['pedidos','pagprazos','metaevo'].forEach(function(k){ delete m[k]; }); }
+  if(Store.papel==='campo'){ ['pedidos','pagprazos','metaevo','cadastro'].forEach(function(k){ delete m[k]; }); }
   if(Store.papel!=='cliente') return m;
   var ok={}; ['garantias','chamados','visitas','satisfacao','relatorio','quinzenal'].forEach(function(k){ ok[k]=m[k]; }); return ok;
 }
 function abaMapaTodas(){
-  return {garantias:tGarantias, chamados:tChamados, visitas:tVisitas, satisfacao:tSatisfacao, resumo:tResumo, etapas:tEtapas, cronograma:tCron, balanco:tBalanco, semana:tSemana, diario:tDiario, ocorrencias:tOcorr, entrega:tEntrega, projeto:tProjeto, compras:tCompras, estoque:tEstoque, locacoes:tLocacoes, contratos:tContratos, avaliacoes:tAvaliacoes, encerramento:tEncerramento, orcamento:tOrcamento, medicao:tMedicao, financeiro:tFinanceiro, fisfin:tFisFin, dre:tDRE, relatorio:tRelatorio, quinzenal:tQuinzenal, pedidos:tPedidos, pagprazos:tPagPrazos, metaevo:tMetaEvo, agenda:tAgenda, reunioes:tReunioes, documentos:tDocumentos};
+  return {garantias:tGarantias, chamados:tChamados, visitas:tVisitas, satisfacao:tSatisfacao, resumo:tResumo, etapas:tEtapas, cronograma:tCron, balanco:tBalanco, semana:tSemana, diario:tDiario, ocorrencias:tOcorr, entrega:tEntrega, projeto:tProjeto, compras:tCompras, estoque:tEstoque, locacoes:tLocacoes, contratos:tContratos, avaliacoes:tAvaliacoes, encerramento:tEncerramento, orcamento:tOrcamento, medicao:tMedicao, financeiro:tFinanceiro, fisfin:tFisFin, dre:tDRE, relatorio:tRelatorio, cadastro:tCadastro, quinzenal:tQuinzenal, pedidos:tPedidos, pagprazos:tPagPrazos, metaevo:tMetaEvo, agenda:tAgenda, reunioes:tReunioes, documentos:tDocumentos};
 }
 function obraNav(o,tab){
   var mapa=abaMapa(), base='#/obra/'+o.id+'/', grupo=NAV_GRUPOS.filter(function(g){ return g[2].indexOf(tab)>=0; })[0]||NAV_GRUPOS[0];
@@ -571,7 +571,7 @@ Object.assign(A5,{
 var DISC_PADRAO={1:'Projetos e legalização',2:'Canteiro e mobilização',3:'Terraplanagem e contenções',4:'Terraplanagem e contenções',5:'Fundação e estrutura',6:'Fundação e estrutura',7:'Alvenaria e vedações',8:'Cobertura',9:'Instalações prediais',10:'Instalações prediais',11:'Instalações prediais',12:'Impermeabilização e isolamentos',13:'Impermeabilização e isolamentos',14:'Revestimentos, contrapisos e fachada',15:'Revestimentos, contrapisos e fachada',16:'Esquadrias e marcenaria',17:'Pintura',18:'Energia solar e aquecimento',19:'Acabamentos finais',20:'Áreas externas',21:'Limpeza e entrega',22:'Limpeza e entrega'};
 var CAUSAS_DESVIO={cliente:'Cliente', fornecedor:'Fornecedor', producao:'Produção', projeto:'Projeto', clima:'Clima', retrabalho:'Retrabalho', orcamento_subdimensionado:'Orçamento subdimensionado', outra:'Outra'};
 function mapaDisc(){ var d=G('config','p0_mapa'), m=Object.assign({}, DISC_PADRAO); if(d&&d.mapa) Object.keys(d.mapa).forEach(function(k){ if(d.mapa[k]) m[k]=d.mapa[k]; }); return m; }
-function encerrada(o){ return o&&o.situacao==='encerrada'; }
+function encerrada(o){ return !!o&&(o.situacao==='encerrada'||o.situacao==='cancelada'); }
 
 /* ---------- checklist de encerramento ---------- */
 function checklistEncerramento(o){

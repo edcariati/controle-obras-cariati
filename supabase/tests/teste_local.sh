@@ -9,7 +9,7 @@ export PGOPTIONS="-c client_min_messages=warning"
 P="psql -h $D -p 54399 -U postgres -v ON_ERROR_STOP=1 -q"
 $P -d postgres -c "create database t" >/dev/null
 $P -d t <<'SQL'
-create schema auth; create table auth.users(id uuid primary key);
+create schema auth; create table auth.users(id uuid primary key, email text, last_sign_in_at timestamptz, created_at timestamptz default now());
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.uid', true),'')::uuid $$;
 create role anon nologin; create role authenticated nologin;
 grant usage on schema public to anon, authenticated;
@@ -30,7 +30,7 @@ SQL
 $P -d t -f "$(dirname "$0")/../migrations/0001_base.sql"
 $P -d t -f "$(dirname "$0")/../migrations/0002_regras.sql"
 $P -d t -c "set role authenticated" >/dev/null
-for m in "$(dirname "$0")"/../migrations/000[3-9]*.sql; do case "$m" in *"${PULAR_MIGRACAO:-__nenhuma__}"*) echo "(pulando $m para demonstrar o achado)";; *) $P -d t -f "$m";; esac; done
-cat "$(dirname "$0")/teste_rls.sql" "$(dirname "$0")/teste_regras.sql" "$(dirname "$0")/teste_notif.sql" "$(dirname "$0")/teste_posobra.sql" "$(dirname "$0")/teste_campo.sql" "$(dirname "$0")/teste_permissoes.sql" "$(dirname "$0")/teste_storage.sql" "$(dirname "$0")/teste_pagamentos.sql" > "$D/todos.sql"
+for m in "$(dirname "$0")"/../migrations/000[3-9]*.sql "$(dirname "$0")"/../migrations/00[1-9][0-9]*.sql; do case "$m" in *"${PULAR_MIGRACAO:-__nenhuma__}"*) echo "(pulando $m para demonstrar o achado)";; *) $P -d t -f "$m";; esac; done
+cat "$(dirname "$0")/teste_rls.sql" "$(dirname "$0")/teste_regras.sql" "$(dirname "$0")/teste_notif.sql" "$(dirname "$0")/teste_posobra.sql" "$(dirname "$0")/teste_campo.sql" "$(dirname "$0")/teste_permissoes.sql" "$(dirname "$0")/teste_storage.sql" "$(dirname "$0")/teste_pagamentos.sql" "$(dirname "$0")/teste_cadastros.sql" > "$D/todos.sql"
 $P -d t -f "$D/todos.sql"
 echo "RLS OK"

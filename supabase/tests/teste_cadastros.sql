@@ -1,0 +1,52 @@
+-- 0010: cadastros (clientes, parceiros, cadastro da obra, arquivos) e gestão de usuários
+reset role;
+update auth.users set email = 'dono@x.com' where id = '00000000-0000-0000-0000-000000000001';
+update auth.users set email = 'gestor@x.com' where id = '00000000-0000-0000-0000-000000000002';
+update auth.users set email = 'campo@x.com' where id = '00000000-0000-0000-0000-000000000003';
+update auth.users set email = 'fin@x.com' where id = '00000000-0000-0000-0000-000000000004';
+update auth.users set email = 'cli@x.com' where id = '00000000-0000-0000-0000-000000000005';
+select tt.como(1);
+insert into public.clientes(id,obra_id,dados) values ('cl1',null,'{"nome":"Maria","doc":"000.000.000-00","telefone":"(15) 99999-0000"}');
+insert into public.cadastros(id,obra_id,dados) values ('o1','o1','{"obraId":"o1","cliente":{"doc":"111"}}');
+insert into public."arquivosObra"(id,obra_id,dados) values ('ar1','o1','{"obraId":"o1","nome":"Contrato","categoria":"Contrato"}');
+insert into public.parceiros(id,obra_id,dados) values ('pa1',null,'{"nome":"Imobiliária X"}');
+set role authenticated;
+select tt.como(1); select tt.exige(tt.conta('clientes')=1 and tt.conta('parceiros')=1 and tt.conta('cadastros')=1 and tt.conta('arquivosObra')=1, 'dono lê clientes, parceiros, cadastro e arquivos');
+select tt.como(2); select tt.exige(tt.conta('clientes')=1 and tt.conta('cadastros')=1, 'gestor da obra lê clientes e cadastro');
+select tt.exige(tt.tenta($$insert into public.clientes(id,obra_id,dados) values ('cl2',null,'{"nome":"Novo"}')$$), 'gestor cadastra cliente');
+select tt.como(4); select tt.exige(tt.tenta($$insert into public.parceiros(id,obra_id,dados) values ('pa2',null,'{"nome":"P2"}')$$), 'financeiro cadastra parceiro');
+select tt.como(3); select tt.exige(tt.conta('clientes')=0 and tt.conta('parceiros')=0 and tt.conta('cadastros')=0 and tt.conta('arquivosObra')=0, 'campo não lê nenhum cadastro de cliente');
+select tt.exige(not tt.tenta($$insert into public.clientes(id,obra_id,dados) values ('clX',null,'{}')$$), 'campo não grava cliente');
+select tt.como(5); select tt.exige(tt.conta('clientes')=0 and tt.conta('cadastros')=0 and tt.conta('arquivosObra')=0, 'cliente da obra não lê cadastros nem arquivos internos');
+-- usuários: só o dono
+select tt.como(2); select tt.exige(not tt.tenta($$select * from public.listar_usuarios()$$), 'gestor não lista usuários');
+select tt.exige(not tt.tenta($$select public.convidar_usuario('a@b.com','A','gestor','{}')$$), 'gestor não convida');
+select tt.exige(not tt.tenta($$select public.definir_acesso('00000000-0000-0000-0000-000000000003','X','dono',true)$$), 'gestor não muda papel');
+select tt.como(3); select tt.exige(not tt.tenta($$select public.remover_acesso('00000000-0000-0000-0000-000000000002')$$), 'campo não remove acesso');
+select tt.exige(tt.conta('convites')=0, 'campo não vê convites');
+select tt.como(1);
+select tt.exige((select count(*) from public.listar_usuarios() where situacao = 'ativo') >= 5, 'dono lista os usuários com situação');
+select tt.exige(public.convidar_usuario('Nova.Pessoa@Cariati.com','Nova Pessoa','gestor','{o1}') = 'convidado', 'convite para e-mail novo');
+select tt.exige((select count(*) from public.listar_usuarios() where situacao = 'convidado' and email = 'nova.pessoa@cariati.com') = 1, 'convite aparece como convidado');
+reset role;
+insert into auth.users(id,email) values ('00000000-0000-0000-0000-0000000000a1','nova.pessoa@cariati.com');
+select tt.exige((select papel from public.perfis where user_id = '00000000-0000-0000-0000-0000000000a1') = 'gestor' and (select ativo from public.perfis where user_id = '00000000-0000-0000-0000-0000000000a1'), 'ao criar a conta, o acesso do convite já nasce pronto');
+select tt.exige(exists (select 1 from public.obra_membros where user_id = '00000000-0000-0000-0000-0000000000a1' and obra_id = 'o1'), 'convite vincula a obra');
+select tt.exige(not exists (select 1 from public.convites where email = 'nova.pessoa@cariati.com'), 'convite consumido');
+set role authenticated; select tt.como(1);
+-- suspender (saída) e reativar (entrada)
+select tt.exige(tt.tenta($$select public.definir_acesso('00000000-0000-0000-0000-0000000000a1','Nova Pessoa','gestor',false)$$), 'dono suspende acesso');
+select tt.como(1);
+select tt.exige((select ativo from public.perfis where user_id = '00000000-0000-0000-0000-0000000000a1') = false, 'perfil suspenso');
+select tt.exige(tt.tenta($$select public.definir_acesso('00000000-0000-0000-0000-0000000000a1','Nova Pessoa','gestor',true)$$), 'dono reativa acesso');
+select tt.exige(tt.tenta($$select public.definir_obras_usuario('00000000-0000-0000-0000-0000000000a1','{}')$$), 'dono troca as obras do usuário');
+select tt.exige(not exists (select 1 from public.obra_membros where user_id = '00000000-0000-0000-0000-0000000000a1'), 'obras removidas');
+select tt.exige(tt.tenta($$select public.remover_acesso('00000000-0000-0000-0000-0000000000a1')$$), 'dono remove o acesso');
+select tt.exige(not exists (select 1 from public.perfis where user_id = '00000000-0000-0000-0000-0000000000a1'), 'perfil removido');
+-- proteções
+select tt.exige(not tt.tenta($$select public.definir_acesso('00000000-0000-0000-0000-000000000001','Edson','gestor',true)$$), 'último dono não pode ser rebaixado');
+select tt.exige(not tt.tenta($$select public.definir_acesso('00000000-0000-0000-0000-000000000001','Edson','dono',false)$$), 'último dono não pode ser suspenso');
+select tt.exige(not tt.tenta($$select public.remover_acesso('00000000-0000-0000-0000-000000000001')$$), 'dono não remove o próprio acesso');
+select tt.exige(not tt.tenta($$select public.convidar_usuario('sem-arroba','X','gestor','{}')$$), 'e-mail inválido é recusado');
+select tt.exige(not tt.tenta($$select public.convidar_usuario('ok@x.com','X','chefe','{}')$$), 'papel inválido é recusado');
+select tt.exige(tt.tenta($$select public.cancelar_convite('inexistente@x.com')$$), 'cancelar convite inexistente não falha');

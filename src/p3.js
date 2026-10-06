@@ -11,7 +11,7 @@ function brl(x){ return (x==null||x==='')?'—':Number(x).toLocaleString('pt-BR'
 function modAdm(o){ return o.modalidade==='Administração de Obra'; }
 function fluxoDe(o){ return modAdm(o)?FLUXO_ADM:FLUXO_GEST; }
 function fornNome(id){ var f=id?G('fornecedores',id):null; return f?f.nome:''; }
-function fornOptions(blank){ return selOpts(L('fornecedores').sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'');}).map(function(f){return [f.id,f.nome];}), blank); }
+function fornOptions(blank){ return selOpts(cdSoAtivos(L('fornecedores')).sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'');}).map(function(f){return [f.id,f.nome];}), blank); }
 function limiteCompra(c){ return (c.dataUso && c.prazoEntrega!=null && c.prazoEntrega!=='') ? addDays(c.dataUso, -Number(c.prazoEntrega)) : ''; }
 function menorCot(c){ var cs=c.cotacoes||[]; if(!cs.length) return null; return cs.reduce(function(m,x){ return x.preco<m.preco?x:m; }, cs[0]); }
 function cotEscolhida(c){ return (c.cotacoes||[]).filter(function(x){return x.id===c.escolhida;})[0]||null; }

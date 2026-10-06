@@ -9,7 +9,7 @@ const fichasAprovadas = (oid, n, qtd) => {
   return o;
 };
 
-test('fase 1 · cadastra obra pelo formulário e abre o resumo', async () => {
+test('fase 1 · cadastra obra pelo formulário e abre o cadastro', async () => {
   const e = await abrir();
   assert.match(e.app(), /Nenhuma obra cadastrada/);
   await e.click('[data-act="obra-nova"]');
@@ -20,7 +20,7 @@ test('fase 1 · cadastra obra pelo formulário e abre o resumo', async () => {
   assert.equal(obras[0].modalidade, 'Administração de Obra');
   assert.equal(obras[0].metaPPC, 80);
   assert.equal(obras[0].margemPreco, 5);
-  assert.match(e.win.location.hash, /^#\/obra\/.+\/resumo$/);
+  assert.match(e.win.location.hash, /^#\/obra\/.+\/cadastro$/);
   assert.match(e.app(), /Casa Silva/);
   assert.deepEqual(e.erros, []);
 });

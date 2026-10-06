@@ -1,5 +1,5 @@
 /* ================= NUVEM, LOGIN E HISTÓRICO ================= */
-var COL_NOMES={garantias:'Garantia', chamadosGarantia:'Chamado de garantia', chamadosCustos:'Custo de garantia', visitasPosObra:'Visita pós-obra', pesquisasSatisfacao:'Pesquisa de satisfação', pedidosPag:'Pedido de pagamento', obras:'Obra', etapas:'Etapa', atividades:'Atividade', pacotes:'Pacote semanal', diarios:'Diário', fichas:'Ficha de verificação', ocorrencias:'Ocorrência', prestadores:'Prestador', eventos:'Agenda', atas:'Ata', acoes:'Ação', docsLegais:'Documento legal', docsPrest:'Documento de prestador', rfis:'Consulta técnica', materiais:'Material', locs:'Local', servicos:'Serviço', treinamentos:'Treinamento', fornecedores:'Fornecedor', compras:'Compra', movEstoque:'Estoque', locacoes:'Locação', contratosPrest:'Contrato', termos:'Termo', danos:'Dano', orcamentos:'Orçamento (versão)', orcItens:'Itens do orçamento', aditivos:'Aditivo', medicoes:'Medição', contasPagar:'Conta a pagar', aportes:'Aporte do cliente', empresas:'Empresa', contratosCliente:'Contrato do cliente', lancamentos:'Lançamento', relatorios:'Relatório mensal', avaliacoes:'Avaliação de prestador', licoes:'Lição aprendida', config:'Configuração'};
+var COL_NOMES={garantias:'Garantia', chamadosGarantia:'Chamado de garantia', chamadosCustos:'Custo de garantia', visitasPosObra:'Visita pós-obra', pesquisasSatisfacao:'Pesquisa de satisfação', pedidosPag:'Pedido de pagamento', clientes:'Cliente', parceiros:'Parceiro', cadastros:'Cadastro da obra', arquivosObra:'Arquivo da obra', obras:'Obra', etapas:'Etapa', atividades:'Atividade', pacotes:'Pacote semanal', diarios:'Diário', fichas:'Ficha de verificação', ocorrencias:'Ocorrência', prestadores:'Prestador', eventos:'Agenda', atas:'Ata', acoes:'Ação', docsLegais:'Documento legal', docsPrest:'Documento de prestador', rfis:'Consulta técnica', materiais:'Material', locs:'Local', servicos:'Serviço', treinamentos:'Treinamento', fornecedores:'Fornecedor', compras:'Compra', movEstoque:'Estoque', locacoes:'Locação', contratosPrest:'Contrato', termos:'Termo', danos:'Dano', orcamentos:'Orçamento (versão)', orcItens:'Itens do orçamento', aditivos:'Aditivo', medicoes:'Medição', contasPagar:'Conta a pagar', aportes:'Aporte do cliente', empresas:'Empresa', contratosCliente:'Contrato do cliente', lancamentos:'Lançamento', relatorios:'Relatório mensal', avaliacoes:'Avaliação de prestador', licoes:'Lição aprendida', config:'Configuração'};
 var hist={rows:null, carregando:false, erro:'', obra:'', colecao:''};
 
 function vLogin(){
@@ -9,7 +9,7 @@ function vLogin(){
     +'<div class="fld"><label for="lg_e">E-mail</label><input id="lg_e" name="email" type="email" autocomplete="username" required></div>'
     +'<div class="fld"><label for="lg_s">Senha</label><input id="lg_s" name="senha" type="password" autocomplete="current-password" required></div>'
     +'<div class="err-msg hide" id="lg_err" role="alert"></div>'
-    +'<div class="row spread" style="margin-top:8px"><button type="button" class="btn ghost sm" data-act="login-esqueci">Esqueci a senha</button><button type="submit" class="btn primary">Entrar</button></div></form>'
+    +'<div class="row spread" style="margin-top:8px"><span class="row" style="gap:4px"><button type="button" class="btn ghost sm" data-act="login-esqueci">Esqueci a senha</button><button type="button" class="btn ghost sm" data-act="login-criar">Primeiro acesso</button></span><button type="submit" class="btn primary">Entrar</button></div></form>'
     +'<div class="row spread muted tiny" style="margin-top:12px;gap:6px"><span>Banco: <code class="k">'+esc((c.url||'').replace(/^https:\/\//,''))+'</code></span><button type="button" class="btn ghost sm" data-act="nuvem-desconectar">Trocar de banco</button></div></div></div>';
 }
 
@@ -154,6 +154,16 @@ var ANuvem={
     var ok=await confirmDlg('Restaurar versão anterior?','<p>“'+esc(short(histLabel(x.colecao,x.dados_antes,x.registro_id),80))+'” volta a ficar como estava antes desta alteração. A versão atual continua no histórico.</p>','Restaurar');
     if(!ok) return;
     await Store.set(x.colecao, x.registro_id, x.dados_antes); toast('Versão restaurada.'); setTimeout(carregarHist, 400);
+  },
+  'login-criar':function(){
+    openForm({title:'Primeiro acesso', intro:'Use o mesmo e-mail que a Cariati liberou para você. Se ele estiver na lista, o acesso já fica pronto assim que a conta for criada.', submit:'Criar minha conta',
+      fields:[{name:'nome',label:'Seu nome',required:true},{name:'email',label:'E-mail',type:'email',required:true,value:(($('#lg_e')||{}).value||'')},{name:'senha',label:'Crie uma senha (mínimo 8 caracteres)',type:'password',required:true}],
+      onSubmit:async function(v){
+        if((v.senha||'').length<8) return 'A senha precisa ter ao menos 8 caracteres.';
+        var r=await Supa.cli.auth.signUp({email:v.email.trim(), password:v.senha, options:{data:{nome:v.nome.trim()}, emailRedirectTo:location.href.split('#')[0]}});
+        if(r.error) return 'Não foi possível criar a conta: '+r.error.message;
+        toast('Conta criada. Se o app pedir, confirme pelo e-mail que enviamos e depois entre.');
+      }});
   },
   'login-esqueci':async function(){
     var em=(($('#lg_e')||{}).value||'').trim(); if(!em){ toast('Digite seu e-mail primeiro.', true); return; }

@@ -9,8 +9,8 @@ const atual = (e, sel) => Array.from(e.doc.querySelectorAll(sel + ' [aria-curren
 test('fase 5 · passo 0 · grupos da obra e subabas', async () => {
   const e = await abrir({ seed: { obras: { o1: obra() } }, hash: '#/obra/o1/resumo' });
   const grupos = Array.from(e.doc.querySelectorAll('nav.grupos a')).map((a) => a.textContent);
-  assert.equal(grupos.join(' · '), 'Visão geral · Planejamento · Execução e qualidade · Suprimentos · Prestadores · Custo e financeiro · Gestão · Pós-obra · Encerramento');
-  assert.equal(atual(e, 'nav.grupos'), 'Visão geral');
+  assert.equal(grupos.join(' · '), 'Resumo e cadastro · Planejamento · Execução e qualidade · Suprimentos · Prestadores · Custo e financeiro · Gestão · Pós-obra · Encerramento');
+  assert.equal(atual(e, 'nav.grupos'), 'Resumo e cadastro');
 });
 
 test('fase 5 · passo 0 · URLs antigas abrem a aba certa e destacam o grupo e a subaba', async () => {
@@ -23,10 +23,10 @@ test('fase 5 · passo 0 · URLs antigas abrem a aba certa e destacam o grupo e a
   }
 });
 
-test('fase 5 · passo 0 · aba desconhecida cai no resumo e o grupo sem subabas não mostra segunda barra', async () => {
+test('fase 5 · passo 0 · aba desconhecida cai no resumo e a segunda barra mostra Resumo e Cadastro', async () => {
   const e = await abrir({ seed: { obras: { o1: obra() } }, hash: '#/obra/o1/nao-existe' });
-  assert.equal(atual(e, 'nav.grupos'), 'Visão geral');
-  assert.equal(e.doc.querySelector('nav.sub'), null);
+  assert.equal(atual(e, 'nav.grupos'), 'Resumo e cadastro');
+  assert.equal(Array.from(e.doc.querySelectorAll('nav.sub a')).map((a) => a.textContent).join(' · '), 'Resumo · Cadastro');
   assert.match(e.app(), /Indicadores/);
 });
 
