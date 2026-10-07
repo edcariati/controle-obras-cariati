@@ -607,3 +607,13 @@ h1{font-size:clamp(26px,1.6vw + 18px,36px);font-weight:700;letter-spacing:-.02em
 @media (max-width:1099.98px){ #gtop{background:var(--glass-solid)} }
 @media (max-width:480px){ .hero-rings .orb span{font-size:8.5px;letter-spacing:.03em} .hero-rings .orb b{font-size:17px} }
 #gtop{background:var(--glass-solid)!important}
+
+/* jornada da obra */
+.jor{list-style:none;margin:0;padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;counter-reset:j}
+.jor>li{position:relative;padding:16px;border-radius:var(--r2);background:var(--glass2);border:1px solid var(--line2)}
+.jor>li:not(:last-child)::after{content:"";position:absolute;right:-12px;top:30px;width:10px;height:10px;border-top:2px solid var(--pri);border-right:2px solid var(--pri);transform:rotate(45deg);opacity:.8}
+.jor-n{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--pri),var(--pri2));color:var(--on-steel);font:700 13px var(--f-body);box-shadow:var(--glow-pri)}
+.jor h3{margin:8px 0 4px;font-size:16px}
+.jor ul{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:6px;font-size:13.5px}
+.jor ul a{color:var(--link)}
+@media (max-width:760px){.jor>li:not(:last-child)::after{display:none}}

@@ -1039,6 +1039,16 @@ h1{font-size:clamp(26px,1.6vw + 18px,36px);font-weight:700;letter-spacing:-.02em
 @media (max-width:1099.98px){ #gtop{background:var(--glass-solid)} }
 @media (max-width:480px){ .hero-rings .orb span{font-size:8.5px;letter-spacing:.03em} .hero-rings .orb b{font-size:17px} }
 #gtop{background:var(--glass-solid)!important}
+
+/* jornada da obra */
+.jor{list-style:none;margin:0;padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;counter-reset:j}
+.jor>li{position:relative;padding:16px;border-radius:var(--r2);background:var(--glass2);border:1px solid var(--line2)}
+.jor>li:not(:last-child)::after{content:"";position:absolute;right:-12px;top:30px;width:10px;height:10px;border-top:2px solid var(--pri);border-right:2px solid var(--pri);transform:rotate(45deg);opacity:.8}
+.jor-n{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--pri),var(--pri2));color:var(--on-steel);font:700 13px var(--f-body);box-shadow:var(--glow-pri)}
+.jor h3{margin:8px 0 4px;font-size:16px}
+.jor ul{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:6px;font-size:13.5px}
+.jor ul a{color:var(--link)}
+@media (max-width:760px){.jor>li:not(:last-child)::after{display:none}}
 </style>
 </head>
 <body>
@@ -6477,7 +6487,8 @@ function fluxoRitos(o){
     var nf=pf.abertas.length+pf.semConferir.length+pf.locacoes.length+pf.pedidos.length;
     st.fim=fimDeObra(o)?(nf?{k:'warn',t:plural(nf,'pendência','pendências')}:{k:'ok',t:'sem pendências'}):{k:'',t:'ainda não é fim de obra'};
   }
-  var R=[['Relatório quinzenal ao cliente','A cada 15 dias, a engenharia emite: texto, posicionamento, fotos e avanço.',o?b+'quinzenal':'','quinzenal'],
+  var R=[['Apontamentos e conclusão por etapa','Em cada etapa: o que ficou pendente, riscos, decisões e a conclusão registrada na liberação.',o?b+'etapas':'','apont'],
+    ['Relatório quinzenal ao cliente','A cada 15 dias, a engenharia emite: texto, posicionamento, fotos e avanço.',o?b+'quinzenal':'','quinzenal'],
     ['Meta × evolução × pagamentos','Toda semana na reunião de compras e medição: o pago acompanha o executado?',o&&ve?b+'metaevo':'','metaevo'],
     ['Pedidos de pagamento e orçamentos','Todo pagamento fora de compra e medição: vários orçamentos, escolha justificada, alçada.',o&&ve?b+'pedidos':'','pedidos'],
     ['Fora do escopo','Aditivo assinado antes de comprar, contratar ou pagar. Emergência: autorização escrita e aditivo em 5 dias.',o?b+'pedidos':'','fora'],
@@ -6485,6 +6496,38 @@ function fluxoRitos(o){
     ['Final de obra × compras','Na janela de fim de obra: fechar pedidos, entregas, locações e estoque antes de encerrar.',o?b+'encerramento':'','fim']];
   return '<section class="card sec flx-ritos"><div class="card-h"><div><h2>Ritos de gestão</h2><p class="muted small">Acontecem ao longo de todas as etapas e alimentam as portas de liberação.</p></div></div><ul class="alerts">'
     +R.map(function(r){ var s=st[r[3]]; return '<li><span class="dot '+(s?s.k:'')+'"></span><div class="grow"><strong>'+esc(r[0])+'</strong><div class="muted small">'+esc(r[1])+'</div></div>'+(s?'<span class="chip '+s.k+'">'+esc(s.t)+'</span>':'')+(r[2]?' <a class="small" href="'+r[2]+'">Abrir</a>':'')+'</li>'; }).join('')+'</ul></section>';
+}
+
+/* ---------- jornada da obra no app: o que se pode fazer em cada momento ---------- */
+function fluxoTab(o,t){ return o&&abaMapa()[t]?'#/obra/'+o.id+'/'+t:''; }
+function fluxoJornada(o){
+  var staff=Store.papel!=='cliente';
+  var J=[
+    ['Cadastro','Quem é o cliente, onde é a obra, o que foi contratado e para onde vão os pagamentos.',[['Cadastros (clientes, prestadores, fornecedores, usuários)',staff?'#/cadastros':''],['Cadastro da obra: cliente, endereço, serviços contratados, conta',fluxoTab(o,'cadastro')],['Arquivos recebidos dos outros aplicativos',fluxoTab(o,'cadastro')]]],
+    ['Planejamento','Orçamento, cronograma e programação de compras antes de abrir a frente.',[['Orçamento',fluxoTab(o,'orcamento')],['Cronograma e linha de base',fluxoTab(o,'cronograma')],['Físico-financeiro',fluxoTab(o,'fisfin')],['Contratos e frentes de prestadores',fluxoTab(o,'contratos')]]],
+    ['Execução e qualidade','As 22 etapas, cada uma liberada na vistoria, com apontamentos e conclusão.',[['Etapas, quadro de evolução e apontamentos',fluxoTab(o,'etapas')],['Diário de obra',fluxoTab(o,'diario')],['Ocorrências e fichas de verificação',fluxoTab(o,'ocorrencias')],['Semana e PPC',fluxoTab(o,'semana')]]],
+    ['Suprimentos e financeiro','Compras, medições, pedidos de pagamento e fluxo do mês.',[['Compras e cotações',fluxoTab(o,'compras')],['Medição de serviços',fluxoTab(o,'medicao')],['Pedidos de pagamento e fora do escopo',fluxoTab(o,'pedidos')],['Financeiro e pagamentos e prazos',fluxoTab(o,'financeiro')],['Estoque e locações',fluxoTab(o,'estoque')]]],
+    ['Gestão','Leitura rápida para decidir: atrasos, o que comprar, meta × evolução e relatórios ao cliente.',[['Visão geral (7, 15, 30, 90 e 120 dias)',staff?'#/visao':''],['Meta × evolução × pagamentos',fluxoTab(o,'metaevo')],['Relatório quinzenal ao cliente',fluxoTab(o,'quinzenal')],['Relatório mensal',fluxoTab(o,'relatorio')],['DRE e fluxo de caixa',staff?'#/dre':'']]],
+    ['Entrega e pós-obra','Fim de obra alinhado às compras, entrega formal, garantias e visitas.',[['Encerramento e P0',fluxoTab(o,'encerramento')],['Pré-entrega',fluxoTab(o,'entrega')],['Garantias, chamados e satisfação',fluxoTab(o,'garantias')]]]
+  ];
+  return '<section class="card sec flx-jor"><div class="card-h"><div><h2>O que dá para fazer no aplicativo</h2><p class="muted small">Da esquerda para a direita, na ordem em que a obra acontece. Toque em um item para abrir.'+(o?'':' Escolha uma obra acima para ligar os atalhos.')+'</p></div></div><ol class="jor">'
+    +J.map(function(f,i){ return '<li><span class="jor-n">'+(i+1)+'</span><h3>'+esc(f[0])+'</h3><p class="muted small">'+esc(f[1])+'</p><ul>'+f[2].map(function(x){ return '<li>'+(x[1]?'<a href="'+x[1]+'">'+esc(x[0])+'</a>':'<span class="muted">'+esc(x[0])+'</span>')+'</li>'; }).join('')+'</ul></li>'; }).join('')+'</ol></section>';
+}
+/* cada serviço do catálogo aponta para a tela do app onde ele acontece */
+var FLX_SERV_TELA={go_consult:'quinzenal',go_visitas:'diario',go_acomp:'etapas',go_fin:'financeiro',go_compras:'compras',
+  ad_compra:'compras',ad_oc:'compras',ad_conf:'compras',ad_ctrlmat:'estoque',ad_aprov:'compras',ad_cot:'compras',ad_contr:'contratos',ad_ctrlpr:'contratos',ad_med:'medicao',
+  ad_op:'pedidos',ad_cpr:'financeiro',ad_fluxo:'financeiro',ad_plan:'metaevo',ad_adit:'pedidos',ad_nf:'financeiro',ad_rel:'relatorio',
+  en_prot:'etapas',en_viz:'etapas',en_conf:'etapas',en_mob:'etapas',en_fisc:'etapas',en_qual:'ocorrencias',en_recm:'compras',en_epi:'ocorrencias',en_sem:'semana',en_duv:'ocorrencias',en_eq:'diario',en_contr:'contratos',en_kpi:'metaevo',
+  en_res:'diario',en_reg:'diario',en_mud:'pedidos',en_risco:'ocorrencias',en_curva:'cronograma',en_entrega:'encerramento'};
+function fluxoServicos(o){
+  if(!o||Store.papel==='cliente'||Store.papel==='campo') return '';
+  var sel=cadServicos(o), n=sel.length, tot=gestTodos().length;
+  var grupos=GEST_SERV.map(function(g){
+    var li=g[1].filter(function(i){ return sel.indexOf(i[0])>=0; });
+    if(!li.length) return '';
+    return '<div class="esc-g"><h4>'+esc(g[0])+'</h4><ul class="esc-l">'+li.map(function(i){ var t=fluxoTab(o,FLX_SERV_TELA[i[0]]); return '<li class="on"><span aria-hidden="true">✓</span> '+(t?'<a href="'+t+'">'+esc(i[1])+'</a>':esc(i[1]))+'</li>'; }).join('')+'</ul></div>';
+  }).join('');
+  return '<section class="card sec"><div class="card-h"><div><h2>Serviços contratados nesta obra</h2><p class="muted small"><span class="chip steel">'+esc(CAD_MOD_NOME[o.modalidade]||o.modalidade||'—')+'</span> '+n+' de '+tot+' serviços. Cada um leva à tela onde acontece. Para mudar a lista: <a href="#/obra/'+o.id+'/cadastro">Cadastro da obra</a>.</p></div></div><div class="pad">'+(n?'<div class="esc">'+grupos+'</div>':'<p class="muted">Nenhum serviço marcado ainda.</p>')+'</div></section>';
 }
 function vFluxo(){
   var r=fluxoRota(), obras=L('obras').sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
@@ -6496,7 +6539,7 @@ function vFluxo(){
     +obras.map(function(x){ return '<option value="'+esc(x.id)+'"'+(o&&o.id===x.id?' selected':'')+'>'+esc(x.nome)+'</option>'; }).join('')+'</select></div>';
   var leg=o?'<div class="flx-leg" aria-label="Legenda">'+STATUS_ORDER.map(function(s){ return '<span><i class="flx-dot '+s+'"></i>'+STATUS[s]+'</span>'; }).join('')+'<span><i class="flx-dot crit"></i>Ocorrência crítica aberta</span></div>':'<p class="muted small">Escolha uma obra para ver em que etapa ela está.</p>';
   var h='<div class="wrap"><div class="sec-h"><div><h1>Fluxo geral</h1><p class="muted" style="margin-top:4px">O caminho de uma obra, da pré-obra ao pós-obra. Cada etapa só é liberada na vistoria (losango).</p></div>'+seletor+'</div>'+leg;
-  h+=fluxoRitos(o);
+  h+=fluxoJornada(o)+fluxoServicos(o)+fluxoRitos(o);
   h+='<div class="flx"><div class="flx-fim ini"><strong>Início</strong><span>A obra abre com terreno regularizado, projetos, orçamento, contrato e licenças</span></div>';
   FASES.forEach(function(f,fi){
     h+='<section class="flx-fase" aria-label="Fase '+(fi+1)+': '+esc(f.nome)+'"><h2><span class="flx-num">'+(fi+1)+'</span>'+esc(f.nome)+'</h2><div class="flx-row">';
