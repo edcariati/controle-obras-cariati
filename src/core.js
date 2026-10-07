@@ -11,7 +11,7 @@ var CLIMA = ['Sol','Nublado','Chuva fraca','Chuva forte'];
 var RESULT = {aprovado:'Aprovado', reprovado:'Reprovado', reinspecao:'Aguardando reinspeção', na:'Não se aplica'};
 var CANAIS = ['WhatsApp','Telefone','Presencial','E-mail','Reunião'];
 var TIPOLOGIAS = ['Casa térrea','Sobrado','Casa de 3 andares'];
-var MODALIDADES = ['Gestão de Obras','Administração de Obra'];
+var MODALIDADES = ['Gestão de Obras','Administração de Obra','Acompanhamento de Obra'];
 var TIPOS_OC = [
   {k:'apontamento', n:'Apontamento da engenharia', ex:'Serviço fora do projeto ou da norma, encontrado em vistoria.', adt:'Não gera aditivo, salvo se o erro estava no projeto.'},
   {k:'cliente', n:'Solicitação do cliente', ex:'Mudança de acabamento, layout ou pontos elétricos, ampliação, troca de material.', adt:'Gera aditivo quando altera escopo, prazo ou valor. Aprovar por escrito antes de executar.'},
@@ -472,11 +472,12 @@ function closeDlg(){ var d=dlgEl(); if(d.open) d.close(); }
 
 function fldHtml(f){
   var id='f_'+f.name, v=f.value, lab='', ctl='', hint=f.hint?'<div class="hint">'+esc(f.hint)+'</div>':'';
-  var grp=(f.type==='radio'||f.type==='photos'||f.type==='efetivo'||f.type==='anexos');
+  var grp=(f.type==='radio'||f.type==='checks'||f.type==='photos'||f.type==='efetivo'||f.type==='anexos');
   if(f.label) lab=grp?'<div class="lb">'+esc(f.label)+(f.required?' *':'')+'</div>':'<label for="'+id+'">'+esc(f.label)+(f.required?' *':'')+'</label>';
   var req=f.required?' required':'';
   if(f.type==='textarea') ctl='<textarea id="'+id+'" name="'+f.name+'" rows="'+(f.rows||3)+'"'+req+' placeholder="'+esc(f.ph||'')+'">'+esc(v||'')+'</textarea>';
   else if(f.type==='select') ctl='<select id="'+id+'" name="'+f.name+'"'+req+'>'+(f.options||[]).map(function(o){ return '<option value="'+esc(o[0])+'"'+(String(o[0])===String(v==null?'':v)?' selected':'')+(o[2]?' disabled':'')+'>'+esc(o[1])+'</option>'; }).join('')+'</select>';
+  else if(f.type==='checks') ctl='<div class="checks">'+(f.options||[]).map(function(o){ return (o[2]?'<h4 class="chk-g">'+esc(o[2])+'</h4>':'')+'<label class="chk"><input type="checkbox" name="'+f.name+'" value="'+esc(o[0])+'"'+((v||[]).indexOf(o[0])>=0?' checked':'')+'><span>'+esc(o[1])+'</span></label>'; }).join('')+'</div>';
   else if(f.type==='radio') ctl='<div class="seg-opts">'+(f.options||[]).map(function(o){ return '<label><input type="radio" name="'+f.name+'" value="'+esc(o[0])+'"'+(String(o[0])===String(v==null?'':v)?' checked':'')+req+'> '+esc(o[1])+'</label>'; }).join('')+'</div>';
   else if(f.type==='photos') ctl='<input type="file" name="'+f.name+'_new" accept="image/*" multiple><div class="thumbs edit" data-photos="'+f.name+'">'+(v||[]).map(function(x){ return '<span class="rm" data-id="'+esc(x)+'"><img src="'+esc(blobUrl(x))+'" alt="" style="width:76px;height:76px;object-fit:cover;border-radius:4px;border:1px solid var(--line)"><button type="button" class="x" data-rm="'+esc(x)+'" aria-label="Remover foto">×</button></span>'; }).join('')+'</div>';
   else if(f.type==='anexos') ctl='<input type="file" name="'+f.name+'_new" accept="image/*,application/pdf" multiple><div class="row" data-anex="'+f.name+'" style="gap:6px;margin-top:8px">'+(v||[]).map(function(x){ return '<span class="chip" data-id="'+esc(x.id)+'">'+esc(short(x.n||'Arquivo',26))+' <button type="button" class="linkbtn" style="display:inline;color:var(--crit)" data-rmx="'+esc(x.id)+'" aria-label="Remover arquivo">×</button></span>'; }).join('')+'</div>';
@@ -593,6 +594,8 @@ function openForm(cfg){
           var inpA=form.querySelector('input[name="'+f.name+'_new"]');
           var novosA=await uploadAnexos(inpA&&inpA.files);
           vals[f.name]=anex[f.name].concat(novosA);
+        } else if(f.type==='checks'){
+          vals[f.name]=fd.getAll(f.name);
         } else if(f.type==='efetivo'){
           var rows=Array.prototype.slice.call(form.querySelectorAll('[data-efet="'+f.name+'"] .efet-row'));
           vals[f.name]=rows.map(function(r){ return {p:r.querySelector('[name="ef_p"]').value, q:Number(r.querySelector('[name="ef_q"]').value)||1}; }).filter(function(r){ return r.p; });

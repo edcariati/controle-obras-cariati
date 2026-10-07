@@ -565,3 +565,44 @@ h1{font-size:clamp(26px,1.6vw + 18px,36px);font-weight:700;letter-spacing:-.02em
   .hero-rings{grid-template-columns:repeat(3,1fr)}
   .hero .hero-t{text-align:center}
 }
+
+/* escopo do contrato e lista de verificação */
+.esc{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.esc-g h4{font:700 11px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--pri);margin-bottom:6px}
+.esc-l{list-style:none;padding:0;margin:0;display:grid;gap:5px;font-size:13.5px}
+.esc-l li.on{color:var(--ink)} .esc-l li.on span{color:var(--ok);font-weight:700}
+.esc-l li.off{color:var(--ink3);text-decoration:line-through;text-decoration-color:rgba(255,255,255,.2)}
+.checks{display:grid;gap:4px} .chk-g{font:700 11px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--pri);margin:12px 0 2px}
+.chk{display:flex;align-items:center;gap:10px;min-height:40px;padding:6px 10px;border-radius:12px;background:var(--glass);border:1px solid var(--line2);cursor:pointer}
+.chk input{width:20px;height:20px;accent-color:var(--pri)} .chk:has(input:checked){border-color:rgba(255,159,28,.5);background:var(--steel-soft)}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* ---------- 21. TELAS MENORES: faixa de navegação na lateral esquerda (nada na parte de baixo) ---------- */
+@media (max-width:1099.98px){
+  :root{--rail:76px}
+  body{padding-left:calc(var(--rail) + 18px)!important;padding-bottom:0!important}
+  body.sem-nav{padding-left:0!important}
+  .top{top:10px;left:10px;bottom:10px;right:auto;width:var(--rail);height:auto;border:1px solid var(--line);border-radius:26px;background:linear-gradient(180deg,rgba(124,92,230,.40),rgba(70,50,150,.28) 55%,rgba(26,22,60,.55));box-shadow:0 24px 60px -24px rgba(0,0,0,.8)}
+  :root[data-theme="light"] .top{background:linear-gradient(180deg,rgba(236,230,255,.92),rgba(248,244,255,.9))}
+  .top-in{flex-direction:column;justify-content:flex-start;align-items:stretch;height:100%;padding:12px 6px;gap:6px}
+  .top .brand{display:flex;flex-direction:column;align-items:center;padding:0}
+  .top .brand-logo{width:56px;max-width:none;height:auto;padding:2px;background:#fff;border-radius:12px}
+  .top .brand-t{display:none}
+  .top .side-new{display:flex;align-items:center;justify-content:center;width:46px;height:46px;min-height:0;padding:0;margin:2px auto;font-size:24px;line-height:1}
+  .top .side-new b{display:none}
+  .top .side-fav,.top .tools,.top .nav-recolher,.nav-sec{display:none}
+  .top .nav{flex-direction:column;flex:1 1 auto;order:0;min-height:0;overflow-y:auto;overflow-x:hidden;justify-content:flex-start;gap:2px;padding:2px 0;scrollbar-width:none}
+  .top .nav::-webkit-scrollbar{display:none}
+  .top .nav a{flex:none;flex-direction:column;gap:3px;padding:8px 2px;min-height:54px;font-size:9.5px;line-height:1.1;text-align:center;white-space:normal;overflow:visible;border-radius:16px;justify-content:center;border:1px solid transparent}
+  .top .nav a:nth-of-type(n+5){display:flex}
+  .top .nav a[aria-current="page"]{background:linear-gradient(135deg,rgba(255,159,28,.22),rgba(139,92,246,.16));border-color:rgba(255,176,64,.35);box-shadow:none}
+  .top .nav a[aria-current="page"]::after{display:block;left:-7px;right:auto;top:22%;bottom:22%;width:3px;height:auto;border-radius:0 3px 3px 0}
+  .top .nav-more{order:0;flex:none;min-height:54px;font-size:9.5px}
+  #gtop{position:sticky;top:0;left:auto;right:auto;margin:10px 14px 0 0;height:auto;padding:8px;border:1px solid var(--line);border-radius:24px;background:var(--glass);backdrop-filter:var(--blur-forte);justify-content:space-between}
+  .wrap{padding-top:14px}
+  .banner{margin:10px 14px 0 0}
+  .cta-fixa{left:calc(var(--rail) + 30px);right:18px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px)}
+}
+@media (max-width:1099.98px) and (max-height:720px){ .top .brand{display:none} }
+@media (max-width:480px){ .wrap{padding-left:10px;padding-right:14px} .hero{padding:14px} }
+@media (max-width:1099.98px){ #gtop{background:var(--glass-solid)} }
+@media (max-width:480px){ .hero-rings .orb span{font-size:8.5px;letter-spacing:.03em} .hero-rings .orb b{font-size:17px} }
