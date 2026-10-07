@@ -233,3 +233,27 @@ test('cadastro da obra · endereço do cliente, escopo por tipo de contrato e co
   await e.submit({ titular: 'Cariati', banco: 'Inter', agencia: '0001', conta: '123-4', pix: 'pix@cariati.com.br' });
   assert.equal(c().conta.pix, 'pix@cariati.com.br'); assert.match(e.app(), /pix@cariati\.com\.br/);
 });
+
+test('lista de serviços · carrega a de fábrica, inclui, edita, bloqueia exclusão em uso, exclui e restaura', async () => {
+  const e = await abrir({ seed: { obras: { o1: obraAdm({ nome: 'Casa Gama', cliente: 'Lia' }) } }, hash: '#/cadastros/servicos' });
+  await e.tick(300);
+  assert.equal(e.linhas('catalogoServicos').length, 40); assert.match(e.app(), /Consultorias internas e externas/); assert.match(e.app(), /Engenharia · Início e preparação/);
+  await e.click('[data-act="sv-novo"]');
+  await e.submit({ nome: 'Maquete eletrônica', grupo: 'Gestão de Obras', tela: 'etapas', mods: ['Gestão de Obras'], ordem: 6 });
+  const novo = e.linhas('catalogoServicos').filter((x) => x.nome === 'Maquete eletrônica')[0];
+  assert.ok(novo); assert.deepEqual(Array.from(novo.mods), ['Gestão de Obras']); assert.ok(e.x.gestPadrao('Gestão de Obras').includes(novo.id));
+  await e.click('[data-act="sv-editar"][data-id="' + novo.id + '"]');
+  await e.submit({ nome: 'Maquete 3D', grupo: 'Gestão de Obras', tela: 'etapas', mods: [], ordem: 6 });
+  assert.equal(e.linhas('catalogoServicos').filter((x) => x.id === novo.id)[0].nome, 'Maquete 3D'); assert.ok(!e.x.gestPadrao('Gestão de Obras').includes(novo.id));
+  // em uso por uma obra: não deixa excluir
+  await e.x.Store.set('cadastros', 'o1', { obraId: 'o1', escopo: { servicos: ['go_consult'] } });
+  await e.tick(100);
+  await e.click('[data-act="cd-excluir"][data-col="catalogoServicos"][data-id="go_consult"]');
+  assert.match(e.dlg(), /Não dá para excluir/); await e.click('[data-close]');
+  assert.equal(e.linhas('catalogoServicos').length, 41);
+  // sem uso: exclui; restaurar traz de volta o de fábrica
+  await e.click('[data-act="cd-excluir"][data-col="catalogoServicos"][data-id="go_visitas"]'); await e.click('[data-x="1"]'); await e.tick(150);
+  assert.equal(e.linhas('catalogoServicos').filter((x) => x.id === 'go_visitas').length, 0);
+  await e.click('[data-act="sv-padrao"]'); await e.click('[data-x="1"]'); await e.tick(250);
+  assert.equal(e.linhas('catalogoServicos').filter((x) => x.id === 'go_visitas').length, 1);
+});

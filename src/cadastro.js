@@ -9,7 +9,7 @@ var CAD_CATEG=['Projeto arquitetônico','Projeto complementar','Orçamento','Con
 var CAD_FASE={projeto:'Em projeto', aprovacao:'Em aprovação', obra:'Em obra', entrega:'Em entrega', posobra:'Pós-obra'};
 var CAD_CONTATO={whatsapp:'WhatsApp', telefone:'Telefone', email:'E-mail'};
 /* catálogo oficial de serviços da Cariati, por linha de contrato. Cada obra marca o que foi contratado. */
-var GEST_SERV=[
+var GEST_BASE=[
   ['Gestão de Obras',[['go_consult','01. Consultorias internas e externas'],['go_visitas','02. Visitas técnicas internas e externas'],['go_acomp','03. Acompanhamento de obras'],['go_fin','04. Gestão financeira de obras'],['go_compras','05. Compras e contratações para obras']]],
   ['Administração · Suprimentos e materiais',[['ad_compra','Compra de materiais'],['ad_oc','Ordens de compra'],['ad_conf','Conferência de materiais no canteiro'],['ad_ctrlmat','Controle de materiais'],['ad_aprov','Aprovação de orçamentos para próxima etapa']]],
   ['Administração · Contratação e prestadores de serviço',[['ad_cot','Cotação e mapa de fornecedores'],['ad_contr','Contratação de prestadores de serviço'],['ad_ctrlpr','Controle da prestação de serviço'],['ad_med','Medição de serviço']]],
@@ -22,10 +22,29 @@ var GEST_SERV=[
   ['Engenharia · Gestão de mudanças e riscos',[['en_mud','Gestão de mudanças de escopo'],['en_risco','Gestão de riscos']]],
   ['Engenharia · Controle de prazo e entrega',[['en_curva','Controle de prazo com Curva S'],['en_entrega','Entrega formal da obra']]]
 ];
-function gestTodos(){ var l=[]; GEST_SERV.forEach(function(g){ g[1].forEach(function(i){ l.push(i[0]); }); }); return l; }
-function gestPrefixo(pre){ return gestTodos().filter(function(k){ return k.indexOf(pre)===0; }); }
-/* sugestão por tipo de contrato (ajustável por obra): Gestão de Obras = os 5 serviços; Administração = tópicos de administração + gestão; Gestão de Engenharia = tópicos de engenharia */
-function gestPadrao(mod){ return mod==='Administração de Obra'?gestPrefixo('go_').concat(gestPrefixo('ad_')):(mod==='Gestão de Engenharia'?gestPrefixo('en_'):gestPrefixo('go_')); }
+var GEST_TELAS={go_consult:'quinzenal',go_visitas:'diario',go_acomp:'etapas',go_fin:'financeiro',go_compras:'compras',
+  ad_compra:'compras',ad_oc:'compras',ad_conf:'compras',ad_ctrlmat:'estoque',ad_aprov:'compras',ad_cot:'compras',ad_contr:'contratos',ad_ctrlpr:'contratos',ad_med:'medicao',
+  ad_op:'pedidos',ad_cpr:'financeiro',ad_fluxo:'financeiro',ad_plan:'metaevo',ad_adit:'pedidos',ad_nf:'financeiro',ad_rel:'relatorio',
+  en_prot:'etapas',en_viz:'etapas',en_conf:'etapas',en_mob:'etapas',en_fisc:'etapas',en_qual:'ocorrencias',en_recm:'compras',en_epi:'ocorrencias',en_sem:'semana',en_duv:'ocorrencias',en_eq:'diario',en_contr:'contratos',en_kpi:'metaevo',
+  en_res:'diario',en_reg:'diario',en_mud:'pedidos',en_risco:'ocorrencias',en_curva:'cronograma',en_entrega:'encerramento'};
+/* a lista vem da coleção "catalogoServicos" (editável em Cadastros › Lista de serviços); sem ela, vale o catálogo de fábrica */
+function gestMods(k){ return k.indexOf('go_')===0?['Gestão de Obras','Administração de Obra']:(k.indexOf('ad_')===0?['Administração de Obra']:['Gestão de Engenharia']); }
+function gestItensBase(){ var l=[], n=0; GEST_BASE.forEach(function(g){ g[1].forEach(function(i){ l.push({id:i[0], nome:i[1], grupo:g[0], tela:GEST_TELAS[i[0]]||'', mods:gestMods(i[0]), ordem:++n, ativo:true}); }); }); return l; }
+function gestItens(inclInativos){ var c=L('catalogoServicos'), l=c.length?c:gestItensBase(); return l.filter(function(i){ return inclInativos||i.ativo!==false; }).sort(function(a,b){ return (a.ordem||0)-(b.ordem||0)||(a.nome||'').localeCompare(b.nome||''); }); }
+/* grupos na ordem em que aparecem: [[grupo,[[id,nome,tela]]]]; serviços desativados só aparecem se a obra já os tem marcados */
+function gestGrupos(sel){
+  var ord=[], mapa={}; gestItens(true).forEach(function(i){ if(i.ativo===false&&!(sel&&sel.indexOf(i.id)>=0)) return; var g=i.grupo||'Outros'; if(!mapa[g]){ mapa[g]=[]; ord.push(g); } mapa[g].push([i.id,i.nome,i.tela||'']); });
+  return ord.map(function(g){ return [g,mapa[g]]; });
+}
+function gestTodos(){ return gestItens(false).map(function(i){ return i.id; }); }
+/* sugestão por tipo de contrato: o que cada serviço marca como padrão (campo "mods") */
+function gestPadrao(mod){ return gestItens(false).filter(function(i){ return (i.mods||[]).indexOf(mod)>=0; }).map(function(i){ return i.id; }); }
+function gestUsos(id){ return L('cadastros').filter(function(c){ return c.escopo&&Array.isArray(c.escopo.servicos)&&c.escopo.servicos.indexOf(id)>=0; }).length; }
+var gestSemeando=false;
+function gestSemear(){
+  if(gestSemeando||!Store.writable||Store.mode==='boot'||Store.papel==='campo'||Store.papel==='cliente'||Store.papel==='leitura'||L('catalogoServicos').length) return;
+  gestSemeando=true; Promise.all(gestItensBase().map(function(i){ var id=i.id, r=Object.assign({},i,{criadoEm:new Date().toISOString()}); delete r.id; return Store.set('catalogoServicos',id,r); })).then(function(){ gestSemeando=false; },function(){ gestSemeando=false; });
+}
 var CAD_MOD_NOME={'Gestão de Obras':'Gestão de Obras','Administração de Obra':'Administração de Obras','Gestão de Engenharia':'Gestão de Engenharia'};
 function cadServicos(o){ var e=cadDoc(o.id).escopo; return Array.isArray(e.servicos)?e.servicos:gestPadrao(o.modalidade); }
 function cadDoc(oid){ var c=G('cadastros',oid)||{}; return {cliente:c.cliente||{}, obra:c.obra||{}, equipe:c.equipe||{}, contrato:c.contrato||{}, escopo:c.escopo||{}, conta:c.conta||{}, hist:c.hist||[]}; }
@@ -61,7 +80,7 @@ function cadEnd(x){
 }
 function cadEscopoCard(o,ed){
   var sel=cadServicos(o), e=cadDoc(o.id).escopo, custom=Array.isArray(e.servicos);
-  var grupos=GEST_SERV.map(function(g){
+  var grupos=gestGrupos(sel).map(function(g){
     return '<div class="esc-g"><h4>'+esc(g[0])+'</h4><ul class="esc-l">'+g[1].map(function(i){ var on=sel.indexOf(i[0])>=0; return '<li class="'+(on?'on':'off')+'"><span aria-hidden="true">'+(on?'✓':'—')+'</span> '+esc(i[1])+(on?'':' <span class="visually-hidden">(não incluso)</span>')+'</li>'; }).join('')+'</ul></div>';
   }).join('');
   var n=sel.length, tot=gestTodos().length;
@@ -116,7 +135,7 @@ function cadFormCliente(oid){
 }
 function cadFormEscopo(oid){
   var o=G('obras',oid), e=cadDoc(oid).escopo, atual=cadServicos(o);
-  var opts=[]; GEST_SERV.forEach(function(g){ g[1].forEach(function(i,ix){ opts.push([i[0],i[1],ix===0?g[0]:'']); }); });
+  var opts=[]; gestGrupos(atual).forEach(function(g){ g[1].forEach(function(i,ix){ opts.push([i[0],i[1],ix===0?g[0]:'']); }); });
   openForm({title:'Contrato e serviços entregues', wide:true, intro:'Escolha o tipo de contrato e marque os serviços contratados (pode combinar linhas). Ao trocar o tipo de contrato, use “Marcar pelo padrão” para recarregar a lista sugerida.', fields:[
     {name:'modalidade',label:'Tipo de contrato',type:'select',options:MODALIDADES.map(function(m){ return [m,CAD_MOD_NOME[m]||m]; }),value:o.modalidade||MODALIDADES[0]},
     {name:'padrao',label:'Marcar pelo padrão do tipo de contrato escolhido?',type:'select',options:[['nao','Não, manter as marcações abaixo'],['sim','Sim, substituir pelo padrão']],value:'nao'},

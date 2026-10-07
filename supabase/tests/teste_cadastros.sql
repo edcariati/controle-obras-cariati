@@ -50,3 +50,14 @@ select tt.exige(not tt.tenta($$select public.remover_acesso('00000000-0000-0000-
 select tt.exige(not tt.tenta($$select public.convidar_usuario('sem-arroba','X','gestor','{}')$$), 'e-mail inválido é recusado');
 select tt.exige(not tt.tenta($$select public.convidar_usuario('ok@x.com','X','chefe','{}')$$), 'papel inválido é recusado');
 select tt.exige(tt.tenta($$select public.cancelar_convite('inexistente@x.com')$$), 'cancelar convite inexistente não falha');
+
+-- 0011: lista de serviços
+reset role;
+insert into public."catalogoServicos"(id,obra_id,dados) values ('go_consult',null,'{"nome":"01. Consultorias","grupo":"Gestão de Obras","ordem":1,"ativo":true}');
+set role authenticated;
+select tt.como(1); select tt.exige(tt.conta('catalogoServicos')=1, 'dono lê a lista de serviços');
+select tt.como(2); select tt.exige(tt.tenta($$insert into public."catalogoServicos"(id,obra_id,dados) values ('x1',null,'{"nome":"Novo"}')$$), 'gestor inclui serviço');
+select tt.como(4); select tt.exige(tt.tenta($$update public."catalogoServicos" set dados='{"nome":"Editado"}' where id='x1'$$), 'financeiro edita serviço');
+select tt.como(3); select tt.exige(tt.conta('catalogoServicos')=0, 'campo não lê a lista de serviços');
+select tt.exige(not tt.tenta($$insert into public."catalogoServicos"(id,obra_id,dados) values ('x2',null,'{}')$$), 'campo não grava serviço');
+select tt.como(5); select tt.exige(tt.conta('catalogoServicos')=0, 'cliente não lê a lista de serviços');

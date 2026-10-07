@@ -2,7 +2,7 @@
    Um lugar só para controlar quem entra e quem sai do sistema: clientes, obras, prestadores, fornecedores, parceiros e usuários.
    Em cada lista: adicionar, editar, cancelar (deixa de aparecer nas escolhas, mas o histórico fica), reativar e excluir.
    Excluir só é permitido quando nada depende do cadastro; senão, o app orienta a cancelar. */
-var CD_ABAS=[['clientes','Clientes'],['obras','Obras'],['prestadores','Prestadores'],['fornecedores','Fornecedores'],['parceiros','Parceiros'],['usuarios','Usuários e acessos']];
+var CD_ABAS=[['clientes','Clientes'],['obras','Obras'],['prestadores','Prestadores'],['fornecedores','Fornecedores'],['parceiros','Parceiros'],['servicos','Lista de serviços'],['usuarios','Usuários e acessos']];
 var CD_PARC={arquiteto:'Arquiteto(a)', engenheiro:'Engenheiro(a)', projetista:'Projetista', imobiliaria:'Imobiliária', corretor:'Corretor(a)', escritorio:'Escritório parceiro', outro:'Outro'};
 var CD_PESSOA={pf:'Pessoa física', pj:'Pessoa jurídica'};
 var CD_PAPEIS={dono:['Administrador','Diretoria: vê e altera tudo, inclusive usuários e valores.'], gestor:['Gestão','Engenharia e compras: edita obras, compras, estoque, contratos e medições; só lê o financeiro.'], financeiro:['Financeiro','Pagamentos, contas, medições e dados de clientes; só lê as obras.'], campo:['Campo','Mestre e encarregado: diário, fichas, ocorrências e recebimento. Nunca vê valores nem dados de clientes.'], cliente:['Cliente','Acompanha só a própria obra: relatórios, garantias e satisfação.'], leitura:['Somente leitura','Consulta tudo que não é restrito, sem editar.']};
@@ -50,6 +50,42 @@ function cdListaParceiros(){
   var lin=l.map(function(p){ return cdLinha(p,['<strong>'+esc(p.nome)+'</strong><div class="tiny muted">'+esc([CD_PARC[p.tipo],p.doc].filter(Boolean).join(' · '))+'</div>',cdContato(p),esc([p.cidade,p.uf].filter(Boolean).join(' / '))||'—',p.comissao!=null&&p.comissao!==''?esc(String(p.comissao).replace('.',','))+'%':'—',cdSitChip(p)],cdAcoes('parceiros',p)); });
   return cdBarra(todos.length,todos.filter(cdAtivo).length,['cd-novo-parceiros','+ Novo parceiro'])+cdTabela(['Parceiro','Contato','Cidade','Comissão','Situação'],lin,['Nenhum parceiro neste filtro','Arquitetos, engenheiros, projetistas, imobiliárias e corretores que indicam ou atuam com a Cariati.']);
 }
+var SV_LINHAS=['Gestão de Obras','Administração · ','Engenharia · '];
+function cdListaServicos(){
+  gestSemear();
+  var todos=gestItens(true), grupos={}, ord=[];
+  todos.forEach(function(i){ var g=i.grupo||'Outros'; if(!grupos[g]){ grupos[g]=[]; ord.push(g); } grupos[g].push(i); });
+  var f=cdFiltro(), visiveis=function(i){ return f==='todos'||(f==='ativos'?i.ativo!==false:i.ativo===false); };
+  var lin=[]; ord.forEach(function(g){
+    var l=grupos[g].filter(visiveis); if(!l.length) return;
+    lin.push('<tr class="sv-g"><td colspan="6"><strong>'+esc(g)+'</strong> <span class="muted small">'+l.length+'</span></td></tr>');
+    l.forEach(function(i){
+      var x=Object.assign({}, i, {ativo:i.ativo!==false}), n=gestUsos(i.id);
+      lin.push(cdLinha(x,['<strong>'+esc(i.nome)+'</strong>',esc(NAV_ROTULO[i.tela]||'—'),esc((i.mods||[]).map(function(m){ return CAD_MOD_NOME[m]||m; }).join(', ')||'—'),n?plural(n,'obra','obras'):'<span class="muted">nenhuma</span>',cdSitChip(x)],cdAcoes('catalogoServicos',x,'sv-editar')));
+    });
+  });
+  var nAt=todos.filter(function(i){ return i.ativo!==false; }).length;
+  return cdBarra(todos.length,nAt,['sv-novo','+ Novo serviço'],'<button class="btn sm" data-act="sv-padrao" data-write>Restaurar serviços de fábrica</button>')
+    +cdTabela(['Serviço','Onde acontece no app','Já vem marcado em','Usado em','Situação'],lin,['Nenhum serviço neste filtro','Cadastre os serviços que a Cariati entrega e marque em cada obra o que foi contratado.']);
+}
+function svForm(x){
+  var novo=!x, grupos=[]; gestItens(true).forEach(function(i){ if(i.grupo&&grupos.indexOf(i.grupo)<0) grupos.push(i.grupo); });
+  openForm({title:novo?'Novo serviço':'Editar serviço', wide:true, intro:'O serviço aparece no cadastro de cada obra, onde você marca o que foi contratado.', fields:[
+    {name:'nome',label:'Nome do serviço',required:true,value:x&&x.nome,ph:'Ex.: Gestão de resíduos da obra'},
+    [{name:'grupo',label:'Grupo (aparece como título da lista)',required:true,value:x&&x.grupo,ph:'Ex.: Engenharia · Segurança'},{name:'tela',label:'Onde acontece no app',type:'select',options:[['','— sem atalho —']].concat(Object.keys(NAV_ROTULO).filter(function(k){ return ['resumo','cadastro','garantias','chamados','visitas','satisfacao','avaliacoes','agenda','reunioes','documentos','dre'].indexOf(k)<0; }).map(function(k){ return [k,NAV_ROTULO[k]]; })),value:(x&&x.tela)||''}],
+    {name:'mods',label:'Já vem marcado nos contratos do tipo',type:'checks',options:MODALIDADES.map(function(m){ return [m,CAD_MOD_NOME[m]||m]; }),value:(x&&x.mods)||[]},
+    {name:'ordem',label:'Posição na lista',type:'number',min:1,step:'1',value:(x&&x.ordem)||(gestItens(true).length+1)}],
+    semPassos:true,
+    onSubmit:async function(v){
+      if(!(v.nome||'').trim()) return 'Informe o nome do serviço.';
+      if(!(v.grupo||'').trim()) return 'Informe o grupo.';
+      var dup=gestItens(true).filter(function(i){ return (!x||i.id!==x.id)&&semAcento(i.nome).toLowerCase()===semAcento(v.nome.trim()).toLowerCase(); })[0];
+      if(dup) return 'Já existe um serviço com este nome.';
+      var rec=Object.assign({ativo:true, criadoEm:new Date().toISOString()}, x||{}); delete rec.id;
+      Object.assign(rec,{nome:v.nome.trim(), grupo:v.grupo.trim(), tela:v.tela||'', mods:v.mods||[], ordem:v.ordem||999});
+      await Store.set('catalogoServicos', x?x.id:nid(), rec);
+    }});
+}
 function cdForm(col,x){
   var novo=!x, cli=col==='clientes', uf=function(v){ return {name:'uf',label:'UF',value:v,ph:'SP'}; };
   var campos=cli?[
@@ -86,12 +122,19 @@ function cdVinculos(col,x){
   if(col==='clientes') return cdObrasDoCliente(x.id).length?['Cliente com '+plural(cdObrasDoCliente(x.id).length,'obra','obras')+'.']:[];
   if(col==='prestadores'){ var n=L('contratosPrest').filter(function(c){ return c.prestadorId===x.id; }).length+L('atividades').filter(function(a){ return a.prestadorId===x.id; }).length; return n?['Prestador com contratos ou atividades ('+n+').']:[]; }
   if(col==='fornecedores'){ var m=L('compras').filter(function(c){ return (c.pedido&&c.pedido.fornecedorId===x.id)||(c.cotacoes||[]).some(function(q){ return q.fornecedorId===x.id; }); }).length+L('locacoes').filter(function(l){ return l.fornecedorId===x.id; }).length; return m?['Fornecedor com compras ou locações ('+m+').']:[]; }
+  if(col==='catalogoServicos'){ var u=gestUsos(x.id); return u?['Este serviço está marcado em '+plural(u,'obra','obras')+'.']:[]; }
   if(col==='obras'){ var k=['etapas','atividades','diarios','compras','contasPagar','medicoes','ocorrencias'].reduce(function(s,c){ return s+byObra(c,x.id).length; },0); return k>0?['A obra já tem '+k+' registros (cronograma, diário, compras, financeiro…).']:[]; }
   return [];
 }
 Object.assign(AG,{
   'cd-filtro':function(d){ ui.cdFiltro=d.f; render(); },
   'cd-novo-clientes':function(){ cdForm('clientes',null); }, 'cd-novo-parceiros':function(){ cdForm('parceiros',null); },
+  'sv-novo':function(){ svForm(null); }, 'sv-editar':function(d){ var x=G('catalogoServicos',d.id)||gestItens(true).filter(function(i){ return i.id===d.id; })[0]; if(x) svForm(x); },
+  'sv-padrao':async function(){
+    var ok=await confirmDlg('Restaurar serviços de fábrica?','<p>Os serviços de fábrica que foram excluídos voltam para a lista. Nada do que você criou ou editou é alterado.</p>','Restaurar'); if(!ok) return;
+    var tem={}; L('catalogoServicos').forEach(function(i){ tem[i.id]=1; }); var n=0;
+    for(var i0=0;i0<gestItensBase().length;i0++){ var b=gestItensBase()[i0]; if(tem[b.id]) continue; var id=b.id, r=Object.assign({},b,{criadoEm:new Date().toISOString()}); delete r.id; await Store.set('catalogoServicos',id,r); n++; }
+    toast(n?plural(n,'serviço restaurado.','serviços restaurados.'):'Nenhum serviço de fábrica estava faltando.'); },
   'cd-editar':function(d){ var x=G(d.col,d.id); if(x) cdForm(d.col,x); },
   'cd-cancelar':function(d){ var x=G(d.col,d.id); if(!x) return; cdMotivo(d.col,d.id,'Cancelar “'+(x.nome||'cadastro')+'”',function(m){ return d.col==='obras'?{situacao:'cancelada', canceladaEm:hoje(), motivoCancelamento:m}:{ativo:false, inativo:true, inativoEm:new Date().toISOString(), motivoInativo:m}; }); },
   'cd-reativar':async function(d){ var x=G(d.col,d.id); if(!x) return; var rec=Object.assign({}, x); delete rec.id;
@@ -237,8 +280,8 @@ function vCadastros(){
   if(ehCliente()||Store.papel==='campo') return notFound();
   var aba=cdAba(), abas=CD_ABAS.filter(function(a){ return a[0]!=='usuarios'||cdPodeUsuarios(); });
   var tabs='<nav class="tabs" aria-label="Cadastros">'+abas.map(function(a){ return '<a href="#/cadastros/'+a[0]+'"'+(a[0]===aba?' aria-current="page"':'')+'>'+a[1]+'</a>'; }).join('')+'</nav>';
-  var info={clientes:'Quem contrata a Cariati. Cadastre uma vez e use em todas as obras do cliente.', obras:'Todas as obras, em andamento, encerradas e canceladas. Cada obra tem o seu cadastro completo.', prestadores:'Quem executa os serviços nas obras, com seguro e treinamento.', fornecedores:'Quem vende material e aluga equipamento.', parceiros:'Arquitetos, engenheiros, projetistas, imobiliárias e corretores.', usuarios:'Quem pode usar o aplicativo: entrada, saída, papel e obras de cada pessoa.'}[aba];
-  var corpo=aba==='clientes'?cdListaClientes():(aba==='obras'?cdListaObras():(aba==='prestadores'?cdListaPrest():(aba==='fornecedores'?cdListaForn():(aba==='parceiros'?cdListaParceiros():cdListaUsuarios()))));
+  var info={servicos:'O que a Cariati entrega em Gestão de Obras, Administração e Gestão de Engenharia. Edite, acrescente ou exclua; em cada obra você marca o que foi contratado.', clientes:'Quem contrata a Cariati. Cadastre uma vez e use em todas as obras do cliente.', obras:'Todas as obras, em andamento, encerradas e canceladas. Cada obra tem o seu cadastro completo.', prestadores:'Quem executa os serviços nas obras, com seguro e treinamento.', fornecedores:'Quem vende material e aluga equipamento.', parceiros:'Arquitetos, engenheiros, projetistas, imobiliárias e corretores.', usuarios:'Quem pode usar o aplicativo: entrada, saída, papel e obras de cada pessoa.'}[aba];
+  var corpo=aba==='clientes'?cdListaClientes():(aba==='obras'?cdListaObras():(aba==='prestadores'?cdListaPrest():(aba==='fornecedores'?cdListaForn():(aba==='parceiros'?cdListaParceiros():(aba==='servicos'?cdListaServicos():cdListaUsuarios())))));
   return '<div class="wrap"><div class="sec-h"><div><h1>Cadastros</h1><p class="muted" style="margin-top:4px">'+info+'</p></div></div>'+tabs+corpo+'</div>';
 }
 COBX.vCadastros=vCadastros; COBX.cdAtivo=cdAtivo;

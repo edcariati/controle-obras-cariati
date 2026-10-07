@@ -45,19 +45,13 @@ function fluxoJornada(o){
   return '<section class="card sec flx-jor"><div class="card-h"><div><h2>O que dá para fazer no aplicativo</h2><p class="muted small">Da esquerda para a direita, na ordem em que a obra acontece. Toque em um item para abrir.'+(o?'':' Escolha uma obra acima para ligar os atalhos.')+'</p></div></div><ol class="jor">'
     +J.map(function(f,i){ return '<li><span class="jor-n">'+(i+1)+'</span><h3>'+esc(f[0])+'</h3><p class="muted small">'+esc(f[1])+'</p><ul>'+f[2].map(function(x){ return '<li>'+(x[1]?'<a href="'+x[1]+'">'+esc(x[0])+'</a>':'<span class="muted">'+esc(x[0])+'</span>')+'</li>'; }).join('')+'</ul></li>'; }).join('')+'</ol></section>';
 }
-/* cada serviço do catálogo aponta para a tela do app onde ele acontece */
-var FLX_SERV_TELA={go_consult:'quinzenal',go_visitas:'diario',go_acomp:'etapas',go_fin:'financeiro',go_compras:'compras',
-  ad_compra:'compras',ad_oc:'compras',ad_conf:'compras',ad_ctrlmat:'estoque',ad_aprov:'compras',ad_cot:'compras',ad_contr:'contratos',ad_ctrlpr:'contratos',ad_med:'medicao',
-  ad_op:'pedidos',ad_cpr:'financeiro',ad_fluxo:'financeiro',ad_plan:'metaevo',ad_adit:'pedidos',ad_nf:'financeiro',ad_rel:'relatorio',
-  en_prot:'etapas',en_viz:'etapas',en_conf:'etapas',en_mob:'etapas',en_fisc:'etapas',en_qual:'ocorrencias',en_recm:'compras',en_epi:'ocorrencias',en_sem:'semana',en_duv:'ocorrencias',en_eq:'diario',en_contr:'contratos',en_kpi:'metaevo',
-  en_res:'diario',en_reg:'diario',en_mud:'pedidos',en_risco:'ocorrencias',en_curva:'cronograma',en_entrega:'encerramento'};
 function fluxoServicos(o){
   if(!o||Store.papel==='cliente'||Store.papel==='campo') return '';
   var sel=cadServicos(o), n=sel.length, tot=gestTodos().length;
-  var grupos=GEST_SERV.map(function(g){
+  var grupos=gestGrupos(sel).map(function(g){
     var li=g[1].filter(function(i){ return sel.indexOf(i[0])>=0; });
     if(!li.length) return '';
-    return '<div class="esc-g"><h4>'+esc(g[0])+'</h4><ul class="esc-l">'+li.map(function(i){ var t=fluxoTab(o,FLX_SERV_TELA[i[0]]); return '<li class="on"><span aria-hidden="true">✓</span> '+(t?'<a href="'+t+'">'+esc(i[1])+'</a>':esc(i[1]))+'</li>'; }).join('')+'</ul></div>';
+    return '<div class="esc-g"><h4>'+esc(g[0])+'</h4><ul class="esc-l">'+li.map(function(i){ var t=fluxoTab(o,i[2]); return '<li class="on"><span aria-hidden="true">✓</span> '+(t?'<a href="'+t+'">'+esc(i[1])+'</a>':esc(i[1]))+'</li>'; }).join('')+'</ul></div>';
   }).join('');
   return '<section class="card sec"><div class="card-h"><div><h2>Serviços contratados nesta obra</h2><p class="muted small"><span class="chip steel">'+esc(CAD_MOD_NOME[o.modalidade]||o.modalidade||'—')+'</span> '+n+' de '+tot+' serviços. Cada um leva à tela onde acontece. Para mudar a lista: <a href="#/obra/'+o.id+'/cadastro">Cadastro da obra</a>.</p></div></div><div class="pad">'+(n?'<div class="esc">'+grupos+'</div>':'<p class="muted">Nenhum serviço marcado ainda.</p>')+'</div></section>';
 }

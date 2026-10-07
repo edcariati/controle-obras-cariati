@@ -103,6 +103,9 @@ async function abrir(opts) {
         if (els[0].type === 'radio') {
           if (!els.some((e) => e.value === String(vals[k]))) throw new Error('opção inexistente em ' + k + ': ' + vals[k]);
           els.forEach((e) => { e.checked = (e.value === String(vals[k])); });
+        } else if (els[0].type === 'checkbox') {
+          const marcados = [].concat(vals[k]).map(String);
+          els.forEach((e) => { e.checked = marcados.includes(e.value); });
         } else {
           els[0].value = vals[k];
           if (els[0].tagName === 'SELECT' && els[0].value !== String(vals[k])) throw new Error('opção inexistente em ' + k + ': ' + vals[k]);
