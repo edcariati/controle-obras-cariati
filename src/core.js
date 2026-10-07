@@ -11,7 +11,7 @@ var CLIMA = ['Sol','Nublado','Chuva fraca','Chuva forte'];
 var RESULT = {aprovado:'Aprovado', reprovado:'Reprovado', reinspecao:'Aguardando reinspeção', na:'Não se aplica'};
 var CANAIS = ['WhatsApp','Telefone','Presencial','E-mail','Reunião'];
 var TIPOLOGIAS = ['Casa térrea','Sobrado','Casa de 3 andares'];
-var MODALIDADES = ['Gestão de Obras','Administração de Obra','Acompanhamento de Obra'];
+var MODALIDADES = ['Gestão de Obras','Administração de Obra','Gestão de Engenharia'];
 var TIPOS_OC = [
   {k:'apontamento', n:'Apontamento da engenharia', ex:'Serviço fora do projeto ou da norma, encontrado em vistoria.', adt:'Não gera aditivo, salvo se o erro estava no projeto.'},
   {k:'cliente', n:'Solicitação do cliente', ex:'Mudança de acabamento, layout ou pontos elétricos, ampliação, troca de material.', adt:'Gera aditivo quando altera escopo, prazo ou valor. Aprovar por escrito antes de executar.'},

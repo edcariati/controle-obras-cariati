@@ -219,16 +219,16 @@ test('cadastro · resumo da obra avisa quando o cadastro está incompleto', asyn
 test('cadastro da obra · endereço do cliente, escopo por tipo de contrato e conta para solicitações', async () => {
   const e = await abrir({ seed: { obras: { o1: obraAdm({ nome: 'Casa Beta', cliente: 'Ana' }) } }, hash: '#/obra/o1/cadastro' });
   assert.match(e.app(), /Contrato e serviços entregues/); assert.match(e.app(), /Conta para solicitações/);
-  assert.match(e.app(), /Administração e gestão/); assert.match(e.app(), /Cotações e negociação com fornecedores/);
+  assert.match(e.app(), /Administração de Obras/); assert.match(e.app(), /Consultorias internas e externas/);
   await e.click('[data-act="cad-cliente"]');
   await e.submit({ nome: 'Ana Souza', cep: '18270-000', logradouro: 'Rua A', numero: '10', bairro: 'Centro', cidade: 'Tatuí', uf: 'sp' });
   const c = () => e.linhas('cadastros')[0];
   assert.equal(c().cliente.uf, 'SP'); assert.match(e.app(), /Rua A, 10/); assert.match(e.app(), /Tatuí \/ SP/);
   await e.click('[data-act="cad-escopo"]');
-  await e.submit({ modalidade: 'Acompanhamento de Obra', padrao: 'sim', extras: 'Visita extra mensal' });
-  assert.equal(e.linhas('obras')[0].modalidade, 'Acompanhamento de Obra');
-  assert.equal(JSON.stringify(c().escopo.servicos), JSON.stringify(e.x.gestPadrao('Acompanhamento de Obra'))); assert.equal(c().escopo.extras, 'Visita extra mensal');
-  assert.ok(!e.x.gestPadrao('Acompanhamento de Obra').includes('sup_comp')); assert.ok(e.x.gestPadrao('Administração de Obra').includes('sup_comp'));
+  await e.submit({ modalidade: 'Gestão de Engenharia', padrao: 'sim', extras: 'Visita extra mensal' });
+  assert.equal(e.linhas('obras')[0].modalidade, 'Gestão de Engenharia');
+  assert.equal(JSON.stringify(c().escopo.servicos), JSON.stringify(e.x.gestPadrao('Gestão de Engenharia'))); assert.equal(c().escopo.extras, 'Visita extra mensal');
+  assert.ok(!e.x.gestPadrao('Gestão de Engenharia').includes('ad_compra')); assert.ok(e.x.gestPadrao('Administração de Obra').includes('ad_compra')); assert.ok(e.x.gestPadrao('Administração de Obra').includes('go_compras')); assert.equal(e.x.gestPadrao('Gestão de Obras').length, 5);
   await e.click('[data-act="cad-conta"]');
   await e.submit({ titular: 'Cariati', banco: 'Inter', agencia: '0001', conta: '123-4', pix: 'pix@cariati.com.br' });
   assert.equal(c().conta.pix, 'pix@cariati.com.br'); assert.match(e.app(), /pix@cariati\.com\.br/);

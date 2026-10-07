@@ -1038,6 +1038,7 @@ h1{font-size:clamp(26px,1.6vw + 18px,36px);font-weight:700;letter-spacing:-.02em
 @media (max-width:480px){ .wrap{padding-left:10px;padding-right:14px} .hero{padding:14px} }
 @media (max-width:1099.98px){ #gtop{background:var(--glass-solid)} }
 @media (max-width:480px){ .hero-rings .orb span{font-size:8.5px;letter-spacing:.03em} .hero-rings .orb b{font-size:17px} }
+#gtop{background:var(--glass-solid)!important}
 </style>
 </head>
 <body>
@@ -1065,7 +1066,7 @@ var CLIMA = ['Sol','Nublado','Chuva fraca','Chuva forte'];
 var RESULT = {aprovado:'Aprovado', reprovado:'Reprovado', reinspecao:'Aguardando reinspeção', na:'Não se aplica'};
 var CANAIS = ['WhatsApp','Telefone','Presencial','E-mail','Reunião'];
 var TIPOLOGIAS = ['Casa térrea','Sobrado','Casa de 3 andares'];
-var MODALIDADES = ['Gestão de Obras','Administração de Obra','Acompanhamento de Obra'];
+var MODALIDADES = ['Gestão de Obras','Administração de Obra','Gestão de Engenharia'];
 var TIPOS_OC = [
   {k:'apontamento', n:'Apontamento da engenharia', ex:'Serviço fora do projeto ou da norma, encontrado em vistoria.', adt:'Não gera aditivo, salvo se o erro estava no projeto.'},
   {k:'cliente', n:'Solicitação do cliente', ex:'Mudança de acabamento, layout ou pontos elétricos, ampliação, troca de material.', adt:'Gera aditivo quando altera escopo, prazo ou valor. Aprovar por escrito antes de executar.'},
@@ -5659,21 +5660,25 @@ var CAD_ORIGEM={projetos:'App de projetos', financeiro:'App financeiro', cliente
 var CAD_CATEG=['Projeto arquitetônico','Projeto complementar','Orçamento','Contrato','Alvará e licenças','Documentos do terreno','Fotos','Financeiro','Outro'];
 var CAD_FASE={projeto:'Em projeto', aprovacao:'Em aprovação', obra:'Em obra', entrega:'Em entrega', posobra:'Pós-obra'};
 var CAD_CONTATO={whatsapp:'WhatsApp', telefone:'Telefone', email:'E-mail'};
-/* serviços entregues pela Cariati, por fase. A lista é um ponto de partida e pode ser ajustada por obra. */
+/* catálogo oficial de serviços da Cariati, por linha de contrato. Cada obra marca o que foi contratado. */
 var GEST_SERV=[
-  ['Planejamento',[['plan_proj','Análise e compatibilização dos projetos'],['plan_orc','Orçamento detalhado e quantitativos'],['plan_crono','Cronograma físico-financeiro'],['plan_comp','Planejamento de compras e contratações'],['plan_forn','Cadastro e qualificação de fornecedores e prestadores']]],
-  ['Suprimentos e contratações',[['sup_cot','Cotações e negociação com fornecedores'],['sup_comp','Compra e logística de materiais'],['sup_prest','Contratação e gestão de prestadores'],['sup_pag','Pedidos de pagamento e conferência de entregas']]],
-  ['Acompanhamento técnico',[['ac_visita','Visitas técnicas periódicas'],['ac_diario','Diário de obra'],['ac_quinz','Relatório quinzenal com fotos ao cliente'],['ac_qual','Inspeção de qualidade por etapa (fichas de verificação)'],['ac_ppc','Controle de prazos e cronograma (PPC)'],['ac_oc','Gestão de ocorrências e não conformidades'],['ac_seg','Acompanhamento de segurança do trabalho']]],
-  ['Financeiro',[['fin_ctrl','Controle financeiro da obra (orçado × realizado)'],['fin_med','Medições de prestadores'],['fin_aporte','Gestão de aportes do cliente e fluxo de caixa'],['fin_conta','Prestação de contas ao cliente']]],
-  ['Mudanças',[['mud_aditivo','Gestão de mudanças e serviços fora do escopo (aditivos)']]],
-  ['Entrega',[['ent_vist','Vistoria final e lista de pendências'],['ent_docs','Entrega de documentação (as built, manuais, garantias)'],['ent_pos','Pós-obra e assistência técnica']]]
+  ['Gestão de Obras',[['go_consult','01. Consultorias internas e externas'],['go_visitas','02. Visitas técnicas internas e externas'],['go_acomp','03. Acompanhamento de obras'],['go_fin','04. Gestão financeira de obras'],['go_compras','05. Compras e contratações para obras']]],
+  ['Administração · Suprimentos e materiais',[['ad_compra','Compra de materiais'],['ad_oc','Ordens de compra'],['ad_conf','Conferência de materiais no canteiro'],['ad_ctrlmat','Controle de materiais'],['ad_aprov','Aprovação de orçamentos para próxima etapa']]],
+  ['Administração · Contratação e prestadores de serviço',[['ad_cot','Cotação e mapa de fornecedores'],['ad_contr','Contratação de prestadores de serviço'],['ad_ctrlpr','Controle da prestação de serviço'],['ad_med','Medição de serviço']]],
+  ['Administração · Financeiro e controle',[['ad_op','Ordens de pagamento'],['ad_cpr','Contas a pagar e a receber'],['ad_fluxo','Fluxo de caixa e adiantamentos'],['ad_plan','Planilhas de evolução'],['ad_adit','Controle de aditivos e imprevistos']]],
+  ['Administração · Documental e fiscal',[['ad_nf','Gestão de notas fiscais e documentação fiscal'],['ad_rel','Relatório periódico de prestação de contas']]],
+  ['Engenharia · Início e preparação',[['en_prot','Protocolo de início de obra'],['en_viz','Vistoria de vizinhos'],['en_conf','Conferência de projetos com a realidade do canteiro'],['en_mob','Mobilização e desmobilização do canteiro']]],
+  ['Engenharia · Fiscalização e qualidade',[['en_fisc','Fiscalização das etapas de execução'],['en_qual','Fiscalização da qualidade de materiais e execução'],['en_recm','Conferência de material recebido'],['en_epi','Vistoria de conformidade de EPI']]],
+  ['Engenharia · Coordenação e acompanhamento',[['en_sem','Acompanhamento semanal da execução'],['en_duv','Conferência de dúvidas e divergências de projeto'],['en_eq','Alinhamento e organização das equipes'],['en_contr','Organização das contratações junto ao canteiro'],['en_kpi','KPIs de evolução e qualificação de prestadores']]],
+  ['Engenharia · Segurança, meio ambiente e registro',[['en_res','Gestão de resíduos da obra'],['en_reg','Registro formal da obra']]],
+  ['Engenharia · Gestão de mudanças e riscos',[['en_mud','Gestão de mudanças de escopo'],['en_risco','Gestão de riscos']]],
+  ['Engenharia · Controle de prazo e entrega',[['en_curva','Controle de prazo com Curva S'],['en_entrega','Entrega formal da obra']]]
 ];
-var GEST_ACOMP=['plan_proj','ac_visita','ac_quinz','ac_qual','ac_oc','mud_aditivo','ent_vist'];
-var GEST_SO_GESTAO=['plan_proj','plan_orc','plan_crono','plan_comp','plan_forn','sup_cot','sup_prest','sup_pag','ac_visita','ac_diario','ac_quinz','ac_qual','ac_ppc','ac_oc','ac_seg','fin_ctrl','fin_med','fin_aporte','fin_conta','mud_aditivo','ent_vist','ent_docs','ent_pos'];
 function gestTodos(){ var l=[]; GEST_SERV.forEach(function(g){ g[1].forEach(function(i){ l.push(i[0]); }); }); return l; }
-/* o que cada modalidade costuma incluir: administração e gestão = tudo (a Cariati também compra); somente gestão = sem compra de material */
-function gestPadrao(mod){ return mod==='Administração de Obra'?gestTodos():(mod==='Acompanhamento de Obra'?GEST_ACOMP.slice():GEST_SO_GESTAO.slice()); }
-var CAD_MOD_NOME={'Administração de Obra':'Administração e gestão','Gestão de Obras':'Somente gestão','Acompanhamento de Obra':'Acompanhamento'};
+function gestPrefixo(pre){ return gestTodos().filter(function(k){ return k.indexOf(pre)===0; }); }
+/* sugestão por tipo de contrato (ajustável por obra): Gestão de Obras = os 5 serviços; Administração = tópicos de administração + gestão; Gestão de Engenharia = tópicos de engenharia */
+function gestPadrao(mod){ return mod==='Administração de Obra'?gestPrefixo('go_').concat(gestPrefixo('ad_')):(mod==='Gestão de Engenharia'?gestPrefixo('en_'):gestPrefixo('go_')); }
+var CAD_MOD_NOME={'Gestão de Obras':'Gestão de Obras','Administração de Obra':'Administração de Obras','Gestão de Engenharia':'Gestão de Engenharia'};
 function cadServicos(o){ var e=cadDoc(o.id).escopo; return Array.isArray(e.servicos)?e.servicos:gestPadrao(o.modalidade); }
 function cadDoc(oid){ var c=G('cadastros',oid)||{}; return {cliente:c.cliente||{}, obra:c.obra||{}, equipe:c.equipe||{}, contrato:c.contrato||{}, escopo:c.escopo||{}, conta:c.conta||{}, hist:c.hist||[]}; }
 function cadArquivos(oid){ return byObra('arquivosObra',oid).sort(function(a,b){ return (b.data||'')<(a.data||'')?-1:1; }); }
@@ -5764,7 +5769,7 @@ function cadFormCliente(oid){
 function cadFormEscopo(oid){
   var o=G('obras',oid), e=cadDoc(oid).escopo, atual=cadServicos(o);
   var opts=[]; GEST_SERV.forEach(function(g){ g[1].forEach(function(i,ix){ opts.push([i[0],i[1],ix===0?g[0]:'']); }); });
-  openForm({title:'Contrato e serviços entregues', wide:true, intro:'Escolha como a obra é contratada e marque o que a Cariati entrega. Ao trocar o tipo de contrato, use “Marcar pelo padrão” para recarregar a lista sugerida.', fields:[
+  openForm({title:'Contrato e serviços entregues', wide:true, intro:'Escolha o tipo de contrato e marque os serviços contratados (pode combinar linhas). Ao trocar o tipo de contrato, use “Marcar pelo padrão” para recarregar a lista sugerida.', fields:[
     {name:'modalidade',label:'Tipo de contrato',type:'select',options:MODALIDADES.map(function(m){ return [m,CAD_MOD_NOME[m]||m]; }),value:o.modalidade||MODALIDADES[0]},
     {name:'padrao',label:'Marcar pelo padrão do tipo de contrato escolhido?',type:'select',options:[['nao','Não, manter as marcações abaixo'],['sim','Sim, substituir pelo padrão']],value:'nao'},
     {name:'servicos',label:'Serviços entregues',type:'checks',options:opts,value:atual},
