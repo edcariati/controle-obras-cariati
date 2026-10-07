@@ -23,17 +23,17 @@ test('fase 5 · passo 0 · URLs antigas abrem a aba certa e destacam o grupo e a
   }
 });
 
-test('fase 5 · passo 0 · aba desconhecida cai no resumo e a segunda barra mostra Resumo e Cadastro', async () => {
+test('fase 5 · passo 0 · aba desconhecida cai no painel de evolução e a segunda barra mostra Painel, Resumo e Cadastro', async () => {
   const e = await abrir({ seed: { obras: { o1: obra() } }, hash: '#/obra/o1/nao-existe' });
   assert.equal(atual(e, 'nav.grupos'), 'Resumo e cadastro');
-  assert.equal(Array.from(e.doc.querySelectorAll('nav.sub a')).map((a) => a.textContent).join(' · '), 'Resumo · Cadastro');
-  assert.match(e.app(), /Indicadores/);
+  assert.equal(Array.from(e.doc.querySelectorAll('nav.sub a')).map((a) => a.textContent).join(' · '), 'Painel de evolução · Resumo · Cadastro');
+  assert.match(e.app(), /Evolução da obra/); assert.match(e.app(), /Gerar cronograma/);
 });
 
 test('fase 5 · passo 0 · cada grupo leva à primeira subaba', async () => {
   const e = await abrir({ seed: { obras: { o1: obra() } }, hash: '#/obra/o1/resumo' });
   const hrefs = Array.from(e.doc.querySelectorAll('nav.grupos a')).map((a) => a.getAttribute('href'));
-  assert.deepEqual(hrefs, ['#/obra/o1/resumo', '#/obra/o1/etapas', '#/obra/o1/diario', '#/obra/o1/compras', '#/obra/o1/contratos', '#/obra/o1/orcamento', '#/obra/o1/agenda', '#/obra/o1/garantias', '#/obra/o1/encerramento']);
+  assert.deepEqual(hrefs, ['#/obra/o1/painel', '#/obra/o1/etapas', '#/obra/o1/diario', '#/obra/o1/compras', '#/obra/o1/contratos', '#/obra/o1/orcamento', '#/obra/o1/agenda', '#/obra/o1/garantias', '#/obra/o1/encerramento']);
 });
 
 /* ---------------- passo 1: empresas, empresa na obra e contrato do cliente ---------------- */

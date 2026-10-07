@@ -6,7 +6,7 @@ function parseRoute(){
   var h=(location.hash||'#/painel').replace(/^#\/?/,''), p=h.split('/');
   if(p[0]==='obra' && p[1]){
     if(p[2]==='etapa' && p[3]) return {view:'etapa', oid:p[1], n:Number(p[3])};
-    return {view:'obra', oid:p[1], tab:p[2]||'resumo'};
+    return {view:'obra', oid:p[1], tab:p[2]||''};
   }
   if(p[0]==='prestadores') return {view:'prestadores'};
   if(p[0]==='agenda') return {view:'agenda'};
@@ -91,7 +91,7 @@ function vPainel(){
 /* ---- obra ---- */
 function vObra(r){
   var o=G('obras',r.oid); if(!o) return notFound();
-  var mapa=abaMapa(), tab=mapa[r.tab]?r.tab:(mapa.resumo?'resumo':'chamados'), fn=mapa[tab];
+  var mapa=abaMapa(), tab=mapa[r.tab]?r.tab:(mapa.painel?'painel':(mapa.resumo?'resumo':'chamados')), fn=mapa[tab];
   var meta=[o.cliente, o.endereco, o.tipologia, o.area?o.area+' m²':'', o.inicio?'início em '+fmt(o.inicio):''].filter(Boolean).map(esc).join(' · ');
   return '<div class="wrap">'+crumbs([['Obras','#/painel'],[o.nome]])+'<a class="back" href="#/painel">← Todas as obras</a>'
     +'<div class="ob-head"><div class="grow"><h1>'+esc(o.nome)+(ehCliente()?'':favBtn(o.id))+(o.codigo?' <span class="muted small num">'+esc(o.codigo)+'</span>':'')+'</h1><div class="meta">'+chipMod(o.modalidade)+(o.situacao==='cancelada'?'<span class="chip crit">Cancelada'+(o.canceladaEm?' em '+fmt(o.canceladaEm):'')+'</span>':'')+(o.situacao==='encerrada'?'<span class="chip ok">Encerrada em '+fmt(o.encerradaEm)+'</span>':'')+'<span>'+meta+'</span></div></div>'
@@ -162,8 +162,8 @@ function cmpAt(a,b){ return ((a.etapa||99)-(b.etapa||99)) || (a.inicio<b.inicio?
 function tCron(o){
   var ats=byObra('atividades',o.id).sort(cmpAt), tem=!!o.baseData;
   var head='<div class="sec-h"><div><h2>Cronograma</h2><p class="muted small">'+(tem?'Linha de base v'+o.baseVersao+' congelada em '+fmt(o.baseData)+'. Mudar datas exige registrar o motivo.':'Sem linha de base. Congele-a quando o cronograma for aprovado.')+'</p></div>'
-    +'<div class="row"><button class="btn" data-act="base-congelar" data-oid="'+o.id+'" data-write'+(ats.length?'':' disabled')+'>'+(tem?'Nova linha de base':'Congelar linha de base')+'</button><button class="btn primary" data-act="ativ-nova" data-oid="'+o.id+'" data-write>+ Atividade</button></div></div>';
-  if(!ats.length) return head+'<div class="card empty" style="margin-top:14px"><h3>Nenhuma atividade no cronograma</h3><p>Cadastre as atividades de cada etapa, com início, fim, prestador e predecessora.</p></div>';
+    +'<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="crono-gerar" data-oid="'+o.id+'" data-write>Gerar cronograma</button><button class="btn" data-act="base-congelar" data-oid="'+o.id+'" data-write'+(ats.length?'':' disabled')+'>'+(tem?'Nova linha de base':'Congelar linha de base')+'</button><button class="btn primary" data-act="ativ-nova" data-oid="'+o.id+'" data-write>+ Atividade</button></div></div>';
+  if(!ats.length) return head+'<div class="card empty" style="margin-top:14px"><h3>Nenhuma atividade no cronograma</h3><p>Gere o cronograma pelo tipo da obra ou cadastre as atividades de cada etapa, com início, fim, prestador e predecessora.</p><p style="margin-top:12px"><button class="btn primary" data-act="crono-gerar" data-oid="'+o.id+'" data-write>Gerar cronograma</button></p></div>';
   var hj=hoje(), minD=hj, maxD=hj;
   ats.forEach(function(a){ [a.inicio,a.fim,a.base&&a.base.inicio,a.base&&a.base.fim].forEach(function(x){ if(x){ if(x<minD) minD=x; if(x>maxD) maxD=x; } }); });
   var start=segunda(addDays(minD,-3)), end=addDays(maxD,10), weeks=Math.ceil((diffDays(start,end)+1)/7), days=weeks*7;
@@ -327,7 +327,8 @@ function obraForm(o){
       {name:'nome',label:'Nome da obra',required:true,value:o&&o.nome,ph:'Ex.: Casa Silva'},
       [{name:'codigo',label:'Código',value:o&&o.codigo,ph:'CA000000'},{name:'cliente',label:'Cliente',value:o&&o.cliente}],
       {name:'endereco',label:'Endereço da obra',value:o&&o.endereco},
-      [{name:'tipologia',label:'Tipologia',type:'select',options:TIPOLOGIAS.map(function(t){return [t,t];}),value:(o&&o.tipologia)||TIPOLOGIAS[0]},{name:'modalidade',label:'Modalidade do contrato',type:'select',options:MODALIDADES.map(function(t){return [t,t];}),value:(o&&o.modalidade)||MODALIDADES[0]}],
+      [{name:'tipologia',label:'Tipologia',type:'select',options:TIPOLOGIAS.map(function(t){return [t,t];}),value:(o&&o.tipologia)||TIPOLOGIAS[0]},{name:'tipoObra',label:'Tipo da obra',type:'select',options:OBRA_TIPOS.map(function(t){return [t,t];}),value:(o&&o.tipoObra)||OBRA_TIPOS[0]}],
+      [{name:'modalidade',label:'Modalidade do contrato',type:'select',options:MODALIDADES.map(function(t){return [t,t];}),value:(o&&o.modalidade)||MODALIDADES[0]}],
       [{name:'area',label:'Área (m²)',type:'number',step:'0.01',min:0,value:o&&o.area},{name:'inicio',label:'Início da obra',type:'date',value:o&&o.inicio}],
       [{name:'metaPPC',label:'Meta de PPC (%)',type:'number',min:0,max:100,value:o&&o.metaPPC!=null?o.metaPPC:80,hint:'Valor provisório, a definir pela Cariati.'},{name:'diasEscalar',label:'Dias de atraso para escalar',type:'number',min:1,value:o&&o.diasEscalar!=null?o.diasEscalar:7,hint:'Apontamento vencido há mais dias vai à diretoria.'}],
       [{name:'alcada',label:'Alçada de compra e locação (R$)',type:'number',min:0,step:'0.01',value:o&&o.alcada,hint:'Acima disso, a compra exige aprovação do cliente. A definir pela Cariati.'},{name:'margemPreco',label:'Margem aceita sobre o orçado (%)',type:'number',min:0,step:'0.1',value:o&&o.margemPreco!=null?o.margemPreco:5,hint:'Valor provisório.'}],
@@ -337,7 +338,7 @@ function obraForm(o){
     extra:novo?'':'<button type="button" class="btn danger" data-act="obra-excluir" data-oid="'+o.id+'" style="margin-right:auto">Excluir obra</button>',
     onSubmit:async function(v){
       if(!(v.nome||'').trim()) return 'Informe o nome da obra.';
-      var data=Object.assign({}, o||{}, {nome:v.nome.trim(), codigo:v.codigo||'', cliente:v.cliente||'', endereco:v.endereco||'', tipologia:v.tipologia, modalidade:v.modalidade, area:v.area, inicio:v.inicio||'', metaPPC:v.metaPPC==null?80:v.metaPPC, diasEscalar:v.diasEscalar==null?7:v.diasEscalar, alcada:v.alcada, margemPreco:v.margemPreco==null?5:v.margemPreco, empresaId:v.empresaId||'', tolerAvanco:v.tolerAvanco==null?5:v.tolerAvanco, abcA:v.abcA==null?80:v.abcA, abcB:v.abcB==null?95:v.abcB});
+      var data=Object.assign({}, o||{}, {nome:v.nome.trim(), codigo:v.codigo||'', cliente:v.cliente||'', endereco:v.endereco||'', tipologia:v.tipologia, tipoObra:v.tipoObra||'', modalidade:v.modalidade, area:v.area, inicio:v.inicio||'', metaPPC:v.metaPPC==null?80:v.metaPPC, diasEscalar:v.diasEscalar==null?7:v.diasEscalar, alcada:v.alcada, margemPreco:v.margemPreco==null?5:v.margemPreco, empresaId:v.empresaId||'', tolerAvanco:v.tolerAvanco==null?5:v.tolerAvanco, abcA:v.abcA==null?80:v.abcA, abcB:v.abcB==null?95:v.abcB});
       if(novo) data.criadoEm=new Date().toISOString();
       var id=novo?nid():o.id; await Store.set('obras', id, data);
       if(novo) location.hash='#/obra/'+id+'/cadastro';

@@ -1,7 +1,7 @@
 /* ================= FASE 5 ================= */
 /* ---------- navegação da obra: grupos e subabas ---------- */
 var NAV_GRUPOS=[
-  ['geral','Resumo e cadastro',['resumo','cadastro']],
+  ['geral','Resumo e cadastro',['painel','resumo','cadastro']],
   ['plan','Planejamento',['etapas','cronograma','balanco','semana']],
   ['exec','Execução e qualidade',['diario','ocorrencias','entrega','projeto']],
   ['sup','Suprimentos',['compras','estoque','locacoes']],
@@ -11,15 +11,15 @@ var NAV_GRUPOS=[
   ['pos','Pós-obra',['garantias','chamados','visitas','satisfacao']],
   ['enc','Encerramento',['encerramento']]
 ];
-var NAV_ROTULO={resumo:'Resumo', etapas:'Etapas', cronograma:'Cronograma', balanco:'Balanço', semana:'Semana e PPC', diario:'Diário', ocorrencias:'Ocorrências', entrega:'Pré-entrega', projeto:'RFI e materiais', compras:'Compras', estoque:'Estoque', locacoes:'Locações', contratos:'Contratos e frentes', avaliacoes:'Avaliações', orcamento:'Orçamento', medicao:'Medição', financeiro:'Financeiro', fisfin:'Físico-financeiro', dre:'DRE', agenda:'Agenda', reunioes:'Reuniões', documentos:'Documentos', relatorio:'Relatório mensal', cadastro:'Cadastro', quinzenal:'Relatório quinzenal', pedidos:'Pedidos de pagamento', pagprazos:'Pagamentos e prazos', metaevo:'Meta × evolução', encerramento:'Encerramento e P0', garantias:'Garantias', chamados:'Chamados', visitas:'Visitas', satisfacao:'Satisfação'};
+var NAV_ROTULO={painel:'Painel de evolução', resumo:'Resumo', etapas:'Etapas', cronograma:'Cronograma', balanco:'Balanço', semana:'Semana e PPC', diario:'Diário', ocorrencias:'Ocorrências', entrega:'Pré-entrega', projeto:'RFI e materiais', compras:'Compras', estoque:'Estoque', locacoes:'Locações', contratos:'Contratos e frentes', avaliacoes:'Avaliações', orcamento:'Orçamento', medicao:'Medição', financeiro:'Financeiro', fisfin:'Físico-financeiro', dre:'DRE', agenda:'Agenda', reunioes:'Reuniões', documentos:'Documentos', relatorio:'Relatório mensal', cadastro:'Cadastro', quinzenal:'Relatório quinzenal', pedidos:'Pedidos de pagamento', pagprazos:'Pagamentos e prazos', metaevo:'Meta × evolução', encerramento:'Encerramento e P0', garantias:'Garantias', chamados:'Chamados', visitas:'Visitas', satisfacao:'Satisfação'};
 function abaMapa(){
   var m=abaMapaTodas();
-  if(Store.papel==='campo'){ ['pedidos','pagprazos','metaevo','cadastro'].forEach(function(k){ delete m[k]; }); }
+  if(Store.papel==='campo'){ ['pedidos','pagprazos','metaevo','cadastro','painel'].forEach(function(k){ delete m[k]; }); }
   if(Store.papel!=='cliente') return m;
   var ok={}; ['garantias','chamados','visitas','satisfacao','relatorio','quinzenal'].forEach(function(k){ ok[k]=m[k]; }); return ok;
 }
 function abaMapaTodas(){
-  return {garantias:tGarantias, chamados:tChamados, visitas:tVisitas, satisfacao:tSatisfacao, resumo:tResumo, etapas:tEtapas, cronograma:tCron, balanco:tBalanco, semana:tSemana, diario:tDiario, ocorrencias:tOcorr, entrega:tEntrega, projeto:tProjeto, compras:tCompras, estoque:tEstoque, locacoes:tLocacoes, contratos:tContratos, avaliacoes:tAvaliacoes, encerramento:tEncerramento, orcamento:tOrcamento, medicao:tMedicao, financeiro:tFinanceiro, fisfin:tFisFin, dre:tDRE, relatorio:tRelatorio, cadastro:tCadastro, quinzenal:tQuinzenal, pedidos:tPedidos, pagprazos:tPagPrazos, metaevo:tMetaEvo, agenda:tAgenda, reunioes:tReunioes, documentos:tDocumentos};
+  return {painel:tPainelObra, garantias:tGarantias, chamados:tChamados, visitas:tVisitas, satisfacao:tSatisfacao, resumo:tResumo, etapas:tEtapas, cronograma:tCron, balanco:tBalanco, semana:tSemana, diario:tDiario, ocorrencias:tOcorr, entrega:tEntrega, projeto:tProjeto, compras:tCompras, estoque:tEstoque, locacoes:tLocacoes, contratos:tContratos, avaliacoes:tAvaliacoes, encerramento:tEncerramento, orcamento:tOrcamento, medicao:tMedicao, financeiro:tFinanceiro, fisfin:tFisFin, dre:tDRE, relatorio:tRelatorio, cadastro:tCadastro, quinzenal:tQuinzenal, pedidos:tPedidos, pagprazos:tPagPrazos, metaevo:tMetaEvo, agenda:tAgenda, reunioes:tReunioes, documentos:tDocumentos};
 }
 function obraNav(o,tab){
   var mapa=abaMapa(), base='#/obra/'+o.id+'/', grupo=NAV_GRUPOS.filter(function(g){ return g[2].indexOf(tab)>=0; })[0]||NAV_GRUPOS[0];

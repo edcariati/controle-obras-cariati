@@ -257,3 +257,19 @@ test('lista de serviços · carrega a de fábrica, inclui, edita, bloqueia exclu
   await e.click('[data-act="sv-padrao"]'); await e.click('[data-x="1"]'); await e.tick(250);
   assert.equal(e.linhas('catalogoServicos').filter((x) => x.id === 'go_visitas').length, 1);
 });
+
+test('painel de evolução e gerador de cronograma por tipo de obra', async () => {
+  const e = await abrir({ seed: { obras: { o1: obra({ nome: 'Reforma Delta', inicio: dia(-10) }) } }, hash: '#/obra/o1/painel' });
+  assert.match(e.app(), /Ainda não há cronograma desta obra/);
+  await e.click('[data-act="crono-gerar"]');
+  await e.submit({ tipo: 'Reforma', padrao: 'sim', inicio: dia(-10), fim: dia(110) });
+  await e.tick(300);
+  const ats = e.linhas('atividades').sort((a, b) => a.inicio < b.inicio ? -1 : 1);
+  assert.equal(ats.length, e.x.CRONO_TIPO_N('Reforma')); assert.ok(ats.every((a) => a.fim >= a.inicio));
+  assert.equal(ats[0].inicio, dia(-10)); assert.equal(ats[ats.length - 1].fim, dia(110));
+  assert.ok(ats.slice(1).every((a, i) => a.pred === ats[i].id));
+  assert.equal(e.linhas('obras')[0].tipoObra, 'Reforma');
+  e.win.location.hash = '#/obra/o1/painel'; await e.tick(250);
+  assert.match(e.app(), /Curva S: pretendido × executado/); assert.match(e.app(), /Etapa por etapa/); assert.match(e.app(), /Quadro de situação/); assert.match(e.app(), /Próximos 15 dias/);
+  assert.ok(e.x.pnPlanejado('o1') > 0);
+});
