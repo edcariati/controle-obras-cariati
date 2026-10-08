@@ -57,3 +57,16 @@ test('fluxo de compras · página Fluxo mostra as 11 etapas e as regras; obra de
   assert.match(e.app(), /Fluxo de compras/); assert.match(e.app(), /Finalização e pedido de pagamento/); assert.match(e.app(), /cobrar/); assert.match(e.app(), /validar com a engenharia/);
   e.win.location.hash = '#/obra/o1/cadastro'; await e.tick(250); assert.match(e.app(), /Cariati paga/);
 });
+
+test('fluxo de compras · tocar na etapa abre o detalhe, mostra as compras e a ação; filtro por setor e matriz', async () => {
+  const e = await abrir({ seed: { obras: { o1: obraAdm() }, fornecedores: forn, compras: { c1: compra({ pagto: { solicitadoEm: dia(-3) } }), c2: compra({ item: 'Areia', status: 'necessidade' }) } }, hash: '#/fluxo/o1' });
+  assert.equal(e.x.cfEtapaSel(e.x.G('obras', 'o1')), 2);
+  await e.click('[data-act="cf-etapa"][data-n="9"]');
+  assert.match(e.app(), /Etapa 09 · Confirmação do pagamento/); assert.match(e.app(), /Passo a passo/); assert.match(e.app(), /Cimento CP-II/); assert.match(e.app(), /Cliente demora a confirmar/);
+  assert.ok(e.doc.querySelector('.cf-det [data-act="compra-avancar"][data-id="c1"]'));
+  await e.click('[data-act="cf-etapa"][data-n="1"]'); assert.ok(e.doc.querySelector('.cf-det [data-act="quant-calc"]'));
+  await e.click('[data-act="cf-setor"][data-s="OBR"]');
+  const dim = Array.from(e.doc.querySelectorAll('.cf-b.dim')).length; assert.ok(dim >= 6 && dim <= 10);
+  assert.ok(e.doc.querySelector('table.cf-mx')); assert.match(e.doc.querySelector('table.cf-mx').textContent, /Obras/);
+  await e.click('[data-act="cf-setor"][data-s=""]'); assert.equal(e.doc.querySelectorAll('.cf-b.dim').length, 0);
+});

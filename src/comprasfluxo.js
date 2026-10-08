@@ -153,15 +153,50 @@ function quantForm(oid){
 COBX.quantCalcular=quantCalcular; COBX.compraEtapaFluxo=compraEtapaFluxo; COBX.FLX_COMPRAS=FLX_COMPRAS; COBX.alertasCF=alertasCF; COBX.cfPagCobrar=cfPagCobrar;
 Object.assign(AG,{ 'quant-calc':function(d){ quantForm(d.oid); } });
 
-/* ---------- mapa do fluxo de compras no Fluxo geral ---------- */
+/* ---------- mapa interativo do fluxo de compras (Fluxo geral) ---------- */
+var CF_SET_NOME={OBR:'Obras',CMP:'Compras'}, CF_TIPO={X:'Executa',P:'Apoia',T:'Confere',H:'Retenção'};
+function pad2(n){ return (n<10?'0':'')+n; }
+function cfSetorAtua(n,s){ return (CF_SETORES[n]||[]).some(function(x){ return x[0]===s; }); }
+function cfEtapaSel(o){
+  if(ui.cfEtapa) return ui.cfEtapa;
+  var cs=o?byObra('compras',o.id):[], e=0; cs.forEach(function(c){ var x=compraEtapaFluxo(o,c); if(x&&(!e||x<e)) e=x; });
+  return e||1;
+}
+function cfDetalhe(o,n){
+  var s=CF_ETAPAS[n-1], f=FLX_COMPRAS[n-1], cs=o?byObra('compras',o.id).filter(function(c){ return compraEtapaFluxo(o,c)===n; }):[];
+  var list=(CF_SETORES[n]||[]).map(function(x){ return '<li><strong>'+esc(CF_SET_NOME[x[0]])+' · '+esc(CF_TIPO[x[1]])+':</strong> '+esc(x[2])+'</li>'; }).join('');
+  var acoes='';
+  if(n===1&&o) acoes='<button class="btn sm primary" data-act="quant-calc" data-oid="'+o.id+'" data-write>Calcular materiais</button>';
+  if((n===2||n===3)&&o) acoes='<button class="btn sm primary" data-act="compra-nova" data-oid="'+o.id+'" data-write>+ Necessidade de compra</button>';
+  var comp=!o?'<p class="muted small">Escolha uma obra acima para ver as compras desta etapa.</p>':(cs.length?'<ul class="cf-c">'+cs.map(function(c){
+      var rot=rotuloAvancar(o,c), atras=pedidoAtrasado(c)||cfPagCobrar(c)||cfDivAberta(c);
+      return '<li><div class="grow"><button type="button" class="linkbtn" data-act="compra-abrir" data-id="'+c.id+'"><strong>'+esc(c.item)+'</strong></button> <span class="muted small">'+esc(String(c.qtd).replace('.',','))+' '+esc(c.un||'')+'</span>'
+        +(atras?' <span class="chip crit">Pede atenção</span>':'')+'</div>'+(rot?'<button class="btn sm primary" data-act="compra-avancar" data-id="'+c.id+'" data-write>'+esc(rot)+' →</button>':'')+'</li>'; }).join('')+'</ul>'
+      :'<p class="muted small">Nenhuma compra desta obra está nesta etapa agora.</p>');
+  return '<div class="cf-det" aria-live="polite"><div class="row spread" style="gap:8px;flex-wrap:wrap"><h3>Etapa '+pad2(n)+' · '+esc(s.nome)+'</h3><span class="chip steel">'+esc(f.quem)+'</span></div>'
+    +'<p>'+esc(s.faz)+'</p><div class="cf-io"><div><small>Entra</small>'+esc(s.entra)+'</div><div><small>Sai</small>'+esc(s.sai)+'</div></div>'
+    +(f.ret?'<p class="small cf-r"><span aria-hidden="true">◆</span> <strong>Retenção:</strong> '+esc(f.ret)+'</p>':'')
+    +(list?'<h4 class="small muted" style="margin:12px 0 4px">Quem faz o quê</h4><ul class="lst">'+list+'</ul>':'')
+    +'<h4 class="small muted" style="margin:12px 0 4px">Passo a passo</h4><ol class="lst">'+s.passos.map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('')+'</ol>'
+    +(s.des&&s.des.length?'<h4 class="small muted" style="margin:12px 0 4px">Desdobramentos</h4><ul class="lst">'+s.des.map(function(d){ return '<li><strong>'+esc(d.t)+':</strong> '+esc(d.a)+'</li>'; }).join('')+'</ul>':'')
+    +'<h4 class="small muted" style="margin:12px 0 4px">Compras da obra nesta etapa</h4>'+comp+(acoes?'<p style="margin-top:8px">'+acoes+'</p>':'')+'</div>';
+}
 function fluxoCompras(o){
   var cs=o?byObra('compras',o.id):[], cont={}; cs.forEach(function(c){ var e=o?compraEtapaFluxo(o,c):0; if(e) cont[e]=(cont[e]||0)+1; });
-  var b=o?'#/obra/'+o.id+'/compras':'';
+  var b=o?'#/obra/'+o.id+'/compras':'', sel=cfEtapaSel(o), st=ui.cfSetor||'';
+  var chips='<div class="row" style="gap:6px;flex-wrap:wrap" role="group" aria-label="Filtrar por setor"><span class="muted small">Setor:</span>'
+    +[['','Todos'],['OBR','Obras'],['CMP','Compras']].map(function(x){ return '<button type="button" class="btn sm'+(st===x[0]?' primary':'')+'" data-act="cf-setor" data-s="'+x[0]+'" aria-pressed="'+(st===x[0])+'">'+x[1]+'</button>'; }).join('')+'</div>';
   var fases=FLX_FASES.map(function(f){
-    return '<li class="cf-f"><h3><span class="jor-n">'+f.n+'</span>'+esc(f.t)+'</h3><ol class="cf-e">'+f.e.map(function(n){ var s=FLX_COMPRAS[n-1], k=cont[n];
-      return '<li><div class="row spread" style="gap:6px"><strong>'+pad2(n)+' · '+esc(s.nome)+'</strong>'+(k?'<a class="chip warn" href="'+b+'" title="Compras desta obra nesta etapa">'+k+'</a>':'')+'</div><div class="tiny muted">'+esc(s.quem)+'</div>'+(s.ret?'<div class="small cf-r"><span aria-hidden="true">◆</span> '+esc(s.ret)+'</div>':'')+'</li>'; }).join('')+'</ol></li>';
+    return '<li class="cf-f"><h3><span class="jor-n">'+f.n+'</span>'+esc(f.t)+'</h3><ol class="cf-e">'+f.e.map(function(n){ var s=FLX_COMPRAS[n-1], k=cont[n], dim=st&&!cfSetorAtua(n,st);
+      return '<li><button type="button" class="cf-b'+(dim?' dim':'')+'" data-act="cf-etapa" data-n="'+n+'" aria-pressed="'+(sel===n)+'"><span class="row spread" style="gap:6px"><strong>'+pad2(n)+' · '+esc(s.nome)+'</strong>'+(k?'<span class="chip warn" title="Compras desta obra nesta etapa">'+k+'</span>':'')+'</span><span class="tiny muted">'+esc(s.quem)+'</span>'+(s.ret?'<span class="small cf-r"><span aria-hidden="true">◆</span> retenção</span>':'')+'</button></li>'; }).join('')+'</ol></li>';
   }).join('');
+  var SIMB={X:'●',P:'◐',T:'✓',H:'◆'}, ORD=['H','T','P','X'];
+  var matriz='<div class="tbl-scroll" style="margin-top:14px"><table class="tbl cf-mx" aria-label="Quem atua em cada etapa"><thead><tr><th>Setor</th>'+FLX_COMPRAS.map(function(f){ return '<th><button type="button" class="linkbtn" data-act="cf-etapa" data-n="'+f.n+'" title="'+esc(f.nome)+'">'+pad2(f.n)+'</button></th>'; }).join('')+'</tr></thead><tbody>'
+    +['OBR','CMP'].map(function(k){ return '<tr><td><strong>'+CF_SET_NOME[k]+'</strong></td>'+FLX_COMPRAS.map(function(f){ var ts=(CF_SETORES[f.n]||[]).filter(function(x){ return x[0]===k; }).map(function(x){ return x[1]; }); var u=ORD.filter(function(t){ return ts.indexOf(t)>=0; });
+        return '<td'+(sel===f.n?' class="sel"':'')+' title="'+esc(u.map(function(t){ return CF_TIPO[t]; }).join(', '))+'">'+(u.length?u.map(function(t){ return '<span aria-label="'+CF_TIPO[t]+'">'+SIMB[t]+'</span>'; }).join(' '):'<span class="muted">—</span>')+'</td>'; }).join('')+'</tr>'; }).join('')+'</tbody></table></div><p class="tiny muted" style="margin-top:6px">● executa · ◐ apoia · ✓ confere · ◆ ponto de retenção</p>';
   var regras=['Fornecedor: vale o menor preço. Outro só com justificativa registrada.','Divergência na entrega: avisar o fornecedor e acompanhar até concluir. Fica alerta enquanto não for concluída.','Atraso de entrega: avisar o fornecedor e registrar o aviso.','Pagamento do cliente: se não confirmar em '+PAGTO_PRAZO_DIAS+' dias, cobrar.','Quantificação: margem de segurança de '+QUANT_MARGEM+'%, a validar com a engenharia.','Quem paga as compras (cliente ou Cariati) é definido em cada obra.'];
-  return '<section class="card sec"><div class="card-h"><div><h2>Fluxo de compras</h2><p class="muted small">Da quantidade na obra ao material conferido. Os números mostram quantas compras da obra estão em cada etapa'+(o?'':'; escolha uma obra acima')+'.</p></div>'+(o?'<a class="btn sm" href="'+b+'">Abrir compras</a>':'')+'</div><div class="pad"><ol class="cf">'+fases+'</ol><h4 style="margin:16px 0 6px" class="small muted">Regras combinadas</h4><ul class="lst">'+regras.map(function(r){ return '<li>'+esc(r)+'</li>'; }).join('')+'</ul></div></section>';
+  return '<section class="card sec"><div class="card-h"><div><h2>Fluxo de compras</h2><p class="muted small">Toque numa etapa para ver o que entra, o que se faz, o que sai e as compras da obra que estão nela'+(o?'':'. Escolha uma obra acima para ligar as compras')+'.</p></div>'+(o?'<a class="btn sm" href="'+b+'">Abrir compras</a>':'')+'</div><div class="pad">'+chips+'<ol class="cf" style="margin-top:12px">'+fases+'</ol>'+cfDetalhe(o,sel)+matriz
+    +'<h4 style="margin:16px 0 6px" class="small muted">Regras combinadas</h4><ul class="lst">'+regras.map(function(r){ return '<li>'+esc(r)+'</li>'; }).join('')+'</ul></div></section>';
 }
-function pad2(n){ return (n<10?'0':'')+n; }
+Object.assign(AG,{ 'cf-etapa':function(d){ ui.cfEtapa=Number(d.n); render(); }, 'cf-setor':function(d){ ui.cfSetor=d.s||''; render(); } });
+COBX.cfEtapaSel=cfEtapaSel;
