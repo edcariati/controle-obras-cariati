@@ -328,7 +328,7 @@ function obraForm(o){
       [{name:'codigo',label:'Código',value:o&&o.codigo,ph:'CA000000'},{name:'cliente',label:'Cliente',value:o&&o.cliente}],
       {name:'endereco',label:'Endereço da obra',value:o&&o.endereco},
       [{name:'tipologia',label:'Tipologia',type:'select',options:TIPOLOGIAS.map(function(t){return [t,t];}),value:(o&&o.tipologia)||TIPOLOGIAS[0]},{name:'tipoObra',label:'Tipo da obra',type:'select',options:OBRA_TIPOS.map(function(t){return [t,t];}),value:(o&&o.tipoObra)||OBRA_TIPOS[0]}],
-      [{name:'modalidade',label:'Modalidade do contrato',type:'select',options:MODALIDADES.map(function(t){return [t,t];}),value:(o&&o.modalidade)||MODALIDADES[0]}],
+      [{name:'modalidade',label:'Modalidade do contrato',type:'select',options:MODALIDADES.map(function(t){return [t,t];}),value:(o&&o.modalidade)||MODALIDADES[0]},{name:'pagCompras',label:'Pagamento das compras',type:'select',options:Object.keys(PAG_QUEM).map(function(k){return [k,PAG_QUEM[k]];}),value:(o&&o.pagCompras)||'cliente',hint:'Quem paga os fornecedores desta obra. Aparece na etapa 8 do fluxo de compras.'}],
       [{name:'area',label:'Área (m²)',type:'number',step:'0.01',min:0,value:o&&o.area},{name:'inicio',label:'Início da obra',type:'date',value:o&&o.inicio}],
       [{name:'metaPPC',label:'Meta de PPC (%)',type:'number',min:0,max:100,value:o&&o.metaPPC!=null?o.metaPPC:80,hint:'Valor provisório, a definir pela Cariati.'},{name:'diasEscalar',label:'Dias de atraso para escalar',type:'number',min:1,value:o&&o.diasEscalar!=null?o.diasEscalar:7,hint:'Apontamento vencido há mais dias vai à diretoria.'}],
       [{name:'alcada',label:'Alçada de compra e locação (R$)',type:'number',min:0,step:'0.01',value:o&&o.alcada,hint:'Acima disso, a compra exige aprovação do cliente. A definir pela Cariati.'},{name:'margemPreco',label:'Margem aceita sobre o orçado (%)',type:'number',min:0,step:'0.1',value:o&&o.margemPreco!=null?o.margemPreco:5,hint:'Valor provisório.'}],
@@ -338,7 +338,7 @@ function obraForm(o){
     extra:novo?'':'<button type="button" class="btn danger" data-act="obra-excluir" data-oid="'+o.id+'" style="margin-right:auto">Excluir obra</button>',
     onSubmit:async function(v){
       if(!(v.nome||'').trim()) return 'Informe o nome da obra.';
-      var data=Object.assign({}, o||{}, {nome:v.nome.trim(), codigo:v.codigo||'', cliente:v.cliente||'', endereco:v.endereco||'', tipologia:v.tipologia, tipoObra:v.tipoObra||'', modalidade:v.modalidade, area:v.area, inicio:v.inicio||'', metaPPC:v.metaPPC==null?80:v.metaPPC, diasEscalar:v.diasEscalar==null?7:v.diasEscalar, alcada:v.alcada, margemPreco:v.margemPreco==null?5:v.margemPreco, empresaId:v.empresaId||'', tolerAvanco:v.tolerAvanco==null?5:v.tolerAvanco, abcA:v.abcA==null?80:v.abcA, abcB:v.abcB==null?95:v.abcB});
+      var data=Object.assign({}, o||{}, {nome:v.nome.trim(), codigo:v.codigo||'', cliente:v.cliente||'', endereco:v.endereco||'', tipologia:v.tipologia, tipoObra:v.tipoObra||'', pagCompras:v.pagCompras||'cliente', modalidade:v.modalidade, area:v.area, inicio:v.inicio||'', metaPPC:v.metaPPC==null?80:v.metaPPC, diasEscalar:v.diasEscalar==null?7:v.diasEscalar, alcada:v.alcada, margemPreco:v.margemPreco==null?5:v.margemPreco, empresaId:v.empresaId||'', tolerAvanco:v.tolerAvanco==null?5:v.tolerAvanco, abcA:v.abcA==null?80:v.abcA, abcB:v.abcB==null?95:v.abcB});
       if(novo) data.criadoEm=new Date().toISOString();
       var id=novo?nid():o.id; await Store.set('obras', id, data);
       if(novo) location.hash='#/obra/'+id+'/cadastro';

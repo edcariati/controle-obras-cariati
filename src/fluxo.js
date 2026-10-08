@@ -65,7 +65,7 @@ function vFluxo(){
     +obras.map(function(x){ return '<option value="'+esc(x.id)+'"'+(o&&o.id===x.id?' selected':'')+'>'+esc(x.nome)+'</option>'; }).join('')+'</select></div>';
   var leg=o?'<div class="flx-leg" aria-label="Legenda">'+STATUS_ORDER.map(function(s){ return '<span><i class="flx-dot '+s+'"></i>'+STATUS[s]+'</span>'; }).join('')+'<span><i class="flx-dot crit"></i>Ocorrência crítica aberta</span></div>':'<p class="muted small">Escolha uma obra para ver em que etapa ela está.</p>';
   var h='<div class="wrap"><div class="sec-h"><div><h1>Fluxo geral</h1><p class="muted" style="margin-top:4px">O caminho de uma obra, da pré-obra ao pós-obra. Cada etapa só é liberada na vistoria (losango).</p></div>'+seletor+'</div>'+leg;
-  h+=fluxoJornada(o)+fluxoServicos(o)+fluxoRitos(o);
+  h+=fluxoJornada(o)+fluxoServicos(o)+fluxoCompras(o)+fluxoRitos(o);
   h+='<div class="flx"><div class="flx-fim ini"><strong>Início</strong><span>A obra abre com terreno regularizado, projetos, orçamento, contrato e licenças</span></div>';
   FASES.forEach(function(f,fi){
     h+='<section class="flx-fase" aria-label="Fase '+(fi+1)+': '+esc(f.nome)+'"><h2><span class="flx-num">'+(fi+1)+'</span>'+esc(f.nome)+'</h2><div class="flx-row">';

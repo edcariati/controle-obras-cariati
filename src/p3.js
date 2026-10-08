@@ -115,6 +115,8 @@ function kcardCompra(o,c){
     +(c.qtd?'<span class="chip">'+esc(String(c.qtd).replace('.',','))+' '+esc(c.un||'')+'</span>':'')
     +(val!=null?'<span class="chip steel">'+brl(val)+'</span>':'')
     +(c.etapa?'<span class="chip">Etapa '+c.etapa+'</span>':'')
+    +(compraEtapaFluxo(o,c)?'<span class="chip" title="Etapa do fluxo de compras">Fluxo '+compraEtapaFluxo(o,c)+'/11</span>':'')
+    +(cfPagCobrar(c)?'<span class="chip crit">Cobrar cliente</span>':'')+(cfDivAberta(c)?'<span class="chip crit">Divergência aberta</span>':'')+(cfAtrasoSemAviso(c)?'<span class="chip crit">Avisar fornecedor</span>':'')
     +(c.critico?'<span class="chip warn">Crítico</span>':'')
     +(lim&&['necessidade','cotacao','aprovacao'].indexOf(c.status)>=0?'<span class="chip '+(atrLim?'crit':'')+'">Pedir até '+fmtC(lim)+'</span>':'')
     +(c.status==='pedido'&&c.pedido&&c.pedido.entregaPrevista?'<span class="chip '+(atrEnt?'crit':'')+'">Entrega '+fmtC(c.pedido.entregaPrevista)+'</span>':'')
@@ -131,7 +133,7 @@ function tCompras(o){
   var info=adm?'<div class="row" style="gap:6px;margin:12px 0"><span class="chip '+(o.alcada==null?'warn':'steel')+'">Alçada: '+(o.alcada==null?'não definida':brl(o.alcada))+'</span><span class="chip steel">Margem sobre o orçado: '+(o.margemPreco==null?5:o.margemPreco)+'%</span><button class="btn sm ghost" data-act="obra-editar" data-oid="'+oid+'" data-write>Ajustar</button></div>'
     :'<div class="callout" style="margin:12px 0">Neste contrato (Gestão de Obras) a compra é do cliente. A Cariati confere a especificação e o recebimento, mas não cota, pede nem paga.</div>';
   var lista=(ui.cmpVista==='lista'&&cs.length)?comprasLista(o,cs):'';
-  return '<div class="sec-h"><div><h2>Compras</h2><p class="muted small">'+(adm?'Da necessidade ao pagamento. Compra fora do orçado ou acima da alçada só segue com aprovação do cliente por escrito.':'Necessidades, entregas e conferência de recebimento.')+'</p></div><button class="btn primary" data-act="compra-nova" data-oid="'+oid+'" data-write>+ Necessidade de compra</button></div>'+info
+  return '<div class="sec-h"><div><h2>Compras</h2><p class="muted small">'+(adm?'Da necessidade ao pagamento. Compra fora do orçado ou acima da alçada só segue com aprovação do cliente por escrito.':'Necessidades, entregas e conferência de recebimento.')+'</p></div><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="quant-calc" data-oid="'+oid+'" data-write>Calcular materiais</button><button class="btn primary" data-act="compra-nova" data-oid="'+oid+'" data-write>+ Necessidade de compra</button></div></div>'+info
     +(cs.length?comprasVistaBarra(o,cs)+(lista||'<div class="board">'+cols+'</div>'):'<div class="card empty"><h3>Nenhuma necessidade de compra</h3><p>Registre o que a obra vai precisar, com a data de uso e o prazo de entrega. O app calcula até quando é preciso pedir.</p></div>');
 }
 function compraForm(oid,c){
@@ -183,9 +185,9 @@ function openCompra(id){
   var cfHtml=c.conf?'<div class="callout ok" style="margin-top:14px"><strong>Conferido em '+fmt(c.conf.data)+' por '+esc(Names.get(c.conf.por))+'</strong><p class="small">'+esc(c.conf.criterio||'')+'</p>'+(c.conf.obs?'<p class="small">'+esc(c.conf.obs)+'</p>':'')+thumbs(c.conf.fotos)+'</div>':'';
   var hist=(c.hist||[]).slice().reverse().map(function(h){ return '<li>'+fmt(h.data)+': '+esc(COMPRA_ST[h.de]||'—')+' → <strong>'+esc(COMPRA_ST[h.para]||h.para)+'</strong> por '+esc(Names.get(h.por))+(h.nota?' — '+esc(h.nota):'')+'</li>'; }).join('');
   openDlg('<div class="dlg-h"><h2>'+esc(c.item)+'</h2><button type="button" class="btn ghost ico" data-close aria-label="Fechar">✕</button></div><div class="dlg-b">'
-    +'<div class="row" style="margin-bottom:10px"><span class="chip steel">'+esc(COMPRA_ST[c.status])+'</span>'+(c.critico?'<span class="chip warn">Crítico</span>':'')+(c.etapa?'<span class="chip">Etapa '+c.etapa+'</span>':'')+(c.sobMedida?'<span class="chip">Sob medida</span>':'')+(c.concretagem?'<span class="chip">Concretagem</span>':'')+'</div>'
+    +'<div class="row" style="margin-bottom:10px"><span class="chip steel">'+esc(COMPRA_ST[c.status])+'</span>'+(compraEtapaFluxo(o,c)?'<span class="chip">Fluxo: etapa '+compraEtapaFluxo(o,c)+'</span>':'')+(c.critico?'<span class="chip warn">Crítico</span>':'')+(c.etapa?'<span class="chip">Etapa '+c.etapa+'</span>':'')+(c.sobMedida?'<span class="chip">Sob medida</span>':'')+(c.concretagem?'<span class="chip">Concretagem</span>':'')+'</div>'
     +'<dl class="small" style="display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0"><dt class="muted">Quantidade</dt><dd style="margin:0">'+esc(String(c.qtd).replace('.',','))+' '+esc(c.un||'')+'</dd><dt class="muted">Uso na obra</dt><dd style="margin:0">'+fmt(c.dataUso)+'</dd><dt class="muted">Pedir até</dt><dd style="margin:0">'+(lim?fmt(lim)+(compraAtrasadaPedido(c)?' — <strong style="color:var(--crit)">atrasado</strong>':''):'—')+'</dd>'+(adm?'<dt class="muted">Orçado</dt><dd style="margin:0">'+brl(c.orcado)+'</dd>':'')+(c.obs?'<dt class="muted">Especificação</dt><dd style="margin:0;white-space:pre-wrap">'+esc(c.obs)+'</dd>':'')+'</dl>'
-    +foraEscopoHtml(c,'compras')+cotHtml+aprHtml+trHtml+pedHtml+entHtml+cfHtml
+    +foraEscopoHtml(c,'compras')+cotHtml+aprHtml+trHtml+pedHtml+cfBlocos(o,c)+entHtml+cfHtml
     +(hist?'<h3 style="margin-top:18px">Histórico</h3><ul class="small" style="padding-left:18px">'+hist+'</ul>':'')
     +'</div><div class="dlg-f"><button class="btn danger" data-act="compra-excluir" data-id="'+c.id+'" data-write style="margin-right:auto">Excluir</button><button class="btn" data-act="compra-editar" data-id="'+c.id+'" data-write>Editar</button>'+(rot?'<button class="btn primary" data-act="compra-avancar" data-id="'+c.id+'" data-vol="1" data-write>'+rot+'</button>':'')+'</div>', true);
 }
@@ -282,18 +284,22 @@ function conferenciaForm(id,vol){
   openForm({title:'Conferir recebimento (FVM)', intro:esc(c.item)+' — '+esc(String(c.entrega?c.entrega.qtd:c.qtd))+' '+esc(c.un||'')+(c.obs?'<br><strong>Especificação:</strong> '+esc(c.obs):''),
     fields:[{name:'resultado',label:'Resultado',type:'radio',required:true,options:[['conferido','Conferido: especificação, quantidade e estado corretos'],['recusado','Recusado']],value:''},
       {name:'criterio',label:'Critério conferido',type:'textarea',rows:2,value:'Especificação, quantidade e estado conferidos contra o pedido e a nota fiscal.'},
-      {name:'obs',label:'Observações',type:'textarea',rows:2,hint:'Obrigatória se recusado.'},{name:'fotos',label:'Fotos do material e da nota',type:'photos',value:[]}],
+      {name:'obs',label:'Observações',type:'textarea',rows:2,hint:'Obrigatória se recusado.'},
+      [{name:'divTipo',label:'Se recusado: tipo da divergência',type:'select',options:selOpts(DIV_TIPOS,'—'),value:''},{name:'avisoForn',label:'Se recusado: fornecedor avisado em',type:'date',value:hoje(),hint:'É obrigatório avisar o fornecedor.'}],
+      {name:'fotos',label:'Fotos do material e da nota',type:'photos',value:[]}],
     submit:'Registrar conferência',
     onSubmit:async function(v){
       if(!v.resultado) return 'Escolha o resultado da conferência.';
       if(v.resultado==='recusado' && !(v.obs||'').trim()) return 'Descreva o motivo da recusa.';
+      if(v.resultado==='recusado' && !v.divTipo) return 'Informe o tipo da divergência.';
+      if(v.resultado==='recusado' && !v.avisoForn) return 'Informe quando o fornecedor foi avisado. É obrigatório avisar o fornecedor.';
       if(v.resultado==='conferido'){
         await Store.add('movEstoque',{obraId:c.obraId, item:c.item, un:c.un||'un', tipo:'entrada', qtd:c.entrega?c.entrega.qtd:c.qtd, data:hoje(), etapa:c.etapa||0, compraId:c.id, obs:'Entrada por conferência de recebimento'});
         await setCompra(c,{status:'conferido', conf:{data:hoje(), resultado:'conferido', criterio:v.criterio||'', obs:v.obs||'', fotos:v.fotos||[], por:Store.uid||null}},'Recebimento conferido');
         toast('Recebimento conferido e material lançado no estoque.');
       } else {
         await Store.add('ocorrencias',{obraId:c.obraId, etapa:c.etapa||0, tipo:'falha', gravidade:'importante', local:'', descricao:'Material recusado no recebimento: '+c.item+'. '+v.obs.trim(), prestadorId:'', prazo:addDays(hoje(),3), status:'aberta', criadoEm:new Date().toISOString(), por:Store.uid||null, interacoes:[], fotos:v.fotos||[], origem:'recebimento', reabertas:0});
-        await setCompra(c,{status:adm?'pedido':'necessidade', entrega:null, conf:null},'Recebimento recusado: '+v.obs.trim());
+        await setCompra(c,{status:adm?'pedido':'necessidade', entrega:null, conf:null, diverg:{tipo:v.divTipo, desc:v.obs.trim(), avisadoEm:v.avisoForn, abertaEm:hoje(), por:Store.uid||null}},'Recebimento recusado: '+v.obs.trim());
         toast('Recusa registrada e ocorrência aberta.');
       }
       return depoisCompra(id,vol);
@@ -524,7 +530,7 @@ function alertasP3(o){
   if(la.length) A.push({k:'warn', t:plural(la.length,'locação com devolução atrasada','locações com devolução atrasada')+': cada dia extra é cobrado.', to:base+'locacoes'});
   var dn=byObra('danos',oid).filter(function(d){return d.status==='aberta';});
   if(dn.length) A.push({k:'warn', t:plural(dn.length,'dano em aberto','danos em aberto')+', somando '+brl(dn.reduce(function(s,d){return s+(Number(d.custo)||0);},0))+'.', to:base+'contratos'});
-  return A.concat(alertasP4(o)).concat(alertasP5(o)).concat(alertasP7(o)).concat(alertasG(o));
+  return A.concat(alertasCF(o)).concat(alertasP4(o)).concat(alertasP5(o)).concat(alertasP7(o)).concat(alertasG(o));
 }
 function indRowsP3(o){
   var oid=o.id, out='', cs=byObra('compras',oid), ls=byObra('locacoes',oid), ts=byObra('termos',oid), ds=byObra('danos',oid);

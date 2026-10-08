@@ -1,0 +1,167 @@
+/* ================= FLUXO DE COMPRAS DA CARIATI (11 etapas em 5 fases) =================
+   Integra ao módulo de compras o fluxograma do setor: etapa de cada compra, pagamento pelo cliente (ou pela Cariati),
+   aviso ao fornecedor em divergência e atraso, e a calculadora de quantificação de materiais.
+   Regras combinadas com a Cariati:
+   · menor preço, ou outro fornecedor com justificativa (já existente na escolha da cotação);
+   · divergência na entrega: avisar o fornecedor e acompanhar até concluir;
+   · cliente que não confirma o pagamento: cobrar depois de 2 dias;
+   · margem de segurança na quantificação: 5%, a validar com a engenharia. */
+var PAGTO_PRAZO_DIAS=2;
+var QUANT_MARGEM=5;
+var PAG_QUEM={cliente:'Cliente paga', cariati:'Cariati paga'};
+var DIV_TIPOS=[['falta','Falta de material'],['excesso','Excesso de material'],['errado','Item errado'],['espec','Fora da especificação'],['avaria','Avaria ou mau estado'],['outro','Outro']];
+var FLX_FASES=[
+  {n:1,t:'Quantificação e solicitação',e:[1,2,3]},{n:2,t:'Cotação',e:[4,5]},{n:3,t:'Aprovação e compra',e:[6,7]},{n:4,t:'Pagamento e arquivamento',e:[8,9]},{n:5,t:'Entrega e conferência',e:[10,11]}];
+var FLX_COMPRAS=[
+  {n:1,nome:'Quantificação do material',quem:'Obras',ret:'Sem a relação de materiais definida, não há o que solicitar.'},
+  {n:2,nome:'Solicitação recebida e analisada',quem:'Obras envia · Compras confere',ret:'Solicitação sem quantidade, especificação e prazo conferidos não é registrada.'},
+  {n:3,nome:'Registro no sistema',quem:'Compras',ret:'A cotação só começa com a solicitação criada.'},
+  {n:4,nome:'Fornecedores e cotação',quem:'Compras',ret:'A análise só começa com as cotações dos fornecedores selecionados.'},
+  {n:5,nome:'Análise e negociação',quem:'Compras',ret:''},
+  {n:6,nome:'Aprovação do fornecedor',quem:'Compras',ret:'Sem fornecedor aprovado, não se emite a ordem de compra. Vale o menor preço; outro, só com justificativa.'},
+  {n:7,nome:'Ordem de compra',quem:'Compras',ret:''},
+  {n:8,nome:'Finalização e pedido de pagamento',quem:'Compras',ret:'O pagamento só é pedido depois do pedido finalizado. Cliente: cobrança depois de '+PAGTO_PRAZO_DIAS+' dias sem confirmação.'},
+  {n:9,nome:'Confirmação do pagamento',quem:'Compras',ret:'O comprovante só vai ao fornecedor depois da confirmação do pagamento.'},
+  {n:10,nome:'Acompanhamento da entrega',quem:'Compras acompanha · Obras recebe',ret:'Atraso: avisar o fornecedor e registrar.'},
+  {n:11,nome:'Conferência do recebimento',quem:'Obras confere · Compras confirma',ret:'A compra só se encerra com quantidade e especificações conferidas. Divergência: avisar o fornecedor e acompanhar até concluir.'}];
+function pagQuemObra(o){ return (o&&o.pagCompras)||'cliente'; }
+function pagDe(c){ return c.pagto||{}; }
+/* em qual das 11 etapas a compra está (0 = encerrada) */
+function compraEtapaFluxo(o,c){
+  var st=c.status, p=pagDe(c);
+  if(st==='necessidade') return 2;
+  if(st==='cotacao') return (c.cotacoes||[]).length?5:4;
+  if(st==='aprovacao') return c.aprov?7:6;
+  if(st==='pedido'){ if(!p.solicitadoEm) return 8; if(!p.confirmadoEm||!p.comprovanteEm) return 9; return 10; }
+  if(st==='entregue') return 11;
+  return 0;
+}
+function cfPagCobrar(c){ var p=pagDe(c); return !!(p.solicitadoEm&&!p.confirmadoEm&&p.quem!=='cariati'&&diffDays(p.solicitadoEm,hoje())>PAGTO_PRAZO_DIAS); }
+function cfPagDias(c){ var p=pagDe(c); return p.solicitadoEm?diffDays(p.solicitadoEm,hoje()):0; }
+function cfDivAberta(c){ return !!(c.diverg&&!c.diverg.resolvidoEm); }
+function cfAtrasoSemAviso(c){ return pedidoAtrasado(c)&&!c.avisoAtraso; }
+
+/* ---------- blocos no diálogo da compra ---------- */
+function cfBlocos(o,c){
+  if(!modAdm(o)) return cfDivHtml(c)+cfAtrasoHtml(c);
+  var h='', p=pagDe(c), e=compraEtapaFluxo(o,c), quem=p.quem||pagQuemObra(o);
+  if(c.status==='pedido'||p.solicitadoEm){
+    var cobrar=cfPagCobrar(c);
+    h+='<div class="callout'+(cobrar?' crit':(p.comprovanteEm?' ok':''))+'" style="margin-top:14px"><strong>Pagamento (etapas 8 e 9) · '+esc(PAG_QUEM[quem])+'</strong><ul class="small" style="margin:6px 0 0;padding-left:18px">'
+      +'<li>Pedido de pagamento: '+(p.solicitadoEm?'solicitado em '+fmt(p.solicitadoEm)+(p.pdf?' · PDF salvo na pasta do cliente':''):'ainda não solicitado')+'</li>'
+      +'<li>Confirmação do pagamento: '+(p.confirmadoEm?'confirmado em '+fmt(p.confirmadoEm):(p.solicitadoEm?(quem==='cariati'?'a Cariati ainda não pagou':'aguardando o cliente'+(cobrar?' — há '+plural(cfPagDias(c),'dia','dias')+', cobrar agora':' (cobrança depois de '+PAGTO_PRAZO_DIAS+' dias)')):'—'))+'</li>'
+      +'<li>Comprovante ao fornecedor: '+(p.comprovanteEm?'enviado em '+fmt(p.comprovanteEm):'ainda não enviado')+'</li></ul>'+anexosHtml(p.anexos)
+      +(c.status==='pedido'?'<p style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'
+        +(!p.solicitadoEm?'<button class="btn sm primary" data-act="pg-pedir" data-id="'+c.id+'" data-write>Pedir pagamento</button>':'')
+        +(p.solicitadoEm&&!p.confirmadoEm?'<button class="btn sm primary" data-act="pg-confirmar" data-id="'+c.id+'" data-write>Confirmar pagamento</button>':'')
+        +(p.confirmadoEm&&!p.comprovanteEm?'<button class="btn sm primary" data-act="pg-comprovante" data-id="'+c.id+'" data-write>Comprovante enviado ao fornecedor</button>':'')+'</p>':'')+'</div>';
+  }
+  return h+cfAtrasoHtml(c)+cfDivHtml(c)+(e?'<p class="small muted" style="margin-top:12px">Etapa '+e+' do fluxo de compras: '+esc(FLX_COMPRAS[e-1].nome)+'.</p>':'');
+}
+function cfAtrasoHtml(c){
+  if(!pedidoAtrasado(c)) return '';
+  return '<div class="callout crit" style="margin-top:14px"><strong>Entrega atrasada desde '+fmt(c.pedido.entregaPrevista)+'</strong><p class="small">'+(c.avisoAtraso?'Fornecedor avisado em '+fmt(c.avisoAtraso.data)+(c.avisoAtraso.obs?' — '+esc(c.avisoAtraso.obs):'')+'.':'O fornecedor ainda não foi avisado do atraso.')+'</p>'
+    +(c.avisoAtraso?'':'<p style="margin-top:8px"><button class="btn sm primary" data-act="av-atraso" data-id="'+c.id+'" data-write>Registrar aviso ao fornecedor</button></p>')+'</div>';
+}
+function cfDivHtml(c){
+  var d=c.diverg; if(!d) return '';
+  var tipo=(DIV_TIPOS.filter(function(t){ return t[0]===d.tipo; })[0]||['',''])[1]||d.tipo;
+  return '<div class="callout '+(d.resolvidoEm?'ok':'crit')+'" style="margin-top:14px"><strong>Divergência na entrega: '+esc(tipo)+(d.resolvidoEm?' · concluída em '+fmt(d.resolvidoEm):' · não concluída há '+plural(diffDays(d.abertaEm,hoje()),'dia','dias'))+'</strong>'
+    +'<p class="small">'+esc(d.desc||'')+'</p><p class="small">Fornecedor avisado em '+fmt(d.avisadoEm)+'.'+(d.resolvidoEm&&d.solucao?' Solução: '+esc(d.solucao):'')+'</p>'
+    +(d.resolvidoEm?'':'<p style="margin-top:8px"><button class="btn sm primary" data-act="dv-resolver" data-id="'+c.id+'" data-write>Marcar como concluída</button></p>')+'</div>';
+}
+
+/* ---------- ações de pagamento, aviso e divergência ---------- */
+function pgPedir(id){
+  var c=G('compras',id), o=G('obras',c.obraId);
+  openForm({title:'Pedir pagamento', intro:esc(c.item)+' — '+brl(valorCompra(c))+'<br>Depois de finalizar o pedido na plataforma, peça o pagamento ao cliente (WhatsApp) e salve o pedido em PDF na pasta do cliente.',
+    fields:[[{name:'data',label:'Data do pedido de pagamento',type:'date',required:true,value:hoje()},{name:'quem',label:'Quem paga',type:'select',options:Object.keys(PAG_QUEM).map(function(k){ return [k,PAG_QUEM[k]]; }),value:pagQuemObra(o)}],
+      {name:'pdf',label:'Pedido em PDF salvo na pasta do cliente?',type:'select',options:[['sim','Sim'],['nao','Ainda não']],value:'sim'}],
+    submit:'Registrar pedido de pagamento',
+    onSubmit:async function(v){ await setCompra(c,{pagto:Object.assign({},pagDe(c),{solicitadoEm:v.data, quem:v.quem, pdf:v.pdf==='sim'})},'Pagamento solicitado ('+PAG_QUEM[v.quem]+')'); openCompra(id); return false; }});
+}
+function pgConfirmar(id){
+  var c=G('compras',id);
+  openForm({title:'Confirmar pagamento', intro:esc(c.item), fields:[{name:'data',label:'Data da confirmação',type:'date',required:true,value:hoje()},{name:'anexos',label:'Comprovante (print ou PDF)',type:'anexos',value:[]}], submit:'Confirmar',
+    onSubmit:async function(v){ await setCompra(c,{pagto:Object.assign({},pagDe(c),{confirmadoEm:v.data, anexos:v.anexos||[]})},'Pagamento confirmado'); openCompra(id); return false; }});
+}
+async function pgComprovante(id){
+  var c=G('compras',id); var p=pagDe(c);
+  await setCompra(c,{pagto:Object.assign({},p,{comprovanteEm:hoje()})},'Comprovante enviado ao fornecedor'); toast('Comprovante registrado. Acompanhe a entrega.'); openCompra(id);
+}
+function avAtraso(id){
+  var c=G('compras',id);
+  openForm({title:'Aviso de atraso ao fornecedor', intro:esc(c.item)+' — entrega prevista em '+fmt(c.pedido.entregaPrevista), fields:[{name:'data',label:'Data do aviso',type:'date',required:true,value:hoje()},{name:'obs',label:'O que o fornecedor respondeu',type:'textarea',rows:2,ph:'Nova data combinada, motivo…'}], submit:'Registrar aviso',
+    onSubmit:async function(v){ await setCompra(c,{avisoAtraso:{data:v.data, obs:(v.obs||'').trim(), por:Store.uid||null}},'Fornecedor avisado do atraso'); openCompra(id); return false; }});
+}
+function dvResolver(id){
+  var c=G('compras',id);
+  openForm({title:'Concluir divergência', intro:esc(c.item), fields:[{name:'data',label:'Data da solução',type:'date',required:true,value:hoje()},{name:'solucao',label:'Como foi resolvido',type:'textarea',required:true,rows:2,ph:'Reposição, crédito, devolução…'}], submit:'Marcar como concluída',
+    onSubmit:async function(v){ if(!(v.solucao||'').trim()) return 'Descreva como foi resolvido.'; await setCompra(c,{diverg:Object.assign({},c.diverg,{resolvidoEm:v.data, solucao:v.solucao.trim()})},'Divergência concluída'); openCompra(id); return false; }});
+}
+Object.assign(AG,{
+  'pg-pedir':function(d){ pgPedir(d.id); }, 'pg-confirmar':function(d){ pgConfirmar(d.id); }, 'pg-comprovante':function(d){ pgComprovante(d.id); },
+  'av-atraso':function(d){ avAtraso(d.id); }, 'dv-resolver':function(d){ dvResolver(d.id); }
+});
+/* alertas da obra: cobrança do cliente, atraso sem aviso, divergência em aberto */
+function alertasCF(o){
+  var A=[], cs=byObra('compras',o.id), base='#/obra/'+o.id+'/compras';
+  var cob=cs.filter(cfPagCobrar); if(cob.length) A.push({k:'crit', t:plural(cob.length,'pagamento do cliente sem confirmação','pagamentos do cliente sem confirmação')+' há mais de '+PAGTO_PRAZO_DIAS+' dias. Cobrar o cliente: '+cob.slice(0,2).map(function(c){ return c.item; }).join(', ')+(cob.length>2?'…':'')+'.', to:base});
+  var sa=cs.filter(cfAtrasoSemAviso); if(sa.length) A.push({k:'crit', t:plural(sa.length,'entrega atrasada','entregas atrasadas')+' sem aviso ao fornecedor: '+sa.slice(0,2).map(function(c){ return c.item; }).join(', ')+'.', to:base});
+  var dv=cs.filter(cfDivAberta); if(dv.length) A.push({k:'warn', t:plural(dv.length,'divergência de entrega não concluída','divergências de entrega não concluídas')+': '+dv.slice(0,2).map(function(c){ return c.item; }).join(', ')+'.', to:base});
+  return A;
+}
+
+/* ---------- quantificação de materiais (etapa 1) ---------- */
+function quantCalcular(tipo,total,margem){
+  var m=1+(Number(margem)||0)/100, c=total*m, ceil=Math.ceil, r=[];
+  if(tipo==='cerquite'){
+    var cab=ceil(c/1.5)+2;
+    r=[['Cerquite (tela de sinalização)','m',ceil(c)],['Área de cerquite','m²',ceil(c*1.2)],['Caibro 5x5 cm','un',cab],['Enforca-gato (abraçadeira)','un',cab*6+50]];
+  } else if(tipo==='madeirite'){
+    var ch=ceil(c/1.2)+2, sar=ceil(c*3+12);
+    r=[['Madeirite (placa 1,10 × 2,20 m)','chapas',ch],['Caibro de apoio','un',ch+2],['Prego 19x21','kg',5],['Sarrafo 7x2','m',sar],['Sarrafo 7x2','un',ceil(sar/3)]];
+  } else {
+    var tubo=ceil(c/5)*5;
+    r=[['Tubo de drenagem','m',tubo],['Manta geotêxtil (Bidim)','m²',Math.round(tubo*2.4*100)/100],['Pedra brita','m³',Math.round(tubo*0.36*100)/100]];
+  }
+  return r.map(function(x){ return {item:x[0], un:x[1], qtd:x[2]}; });
+}
+var QUANT_TIPOS={cerquite:'Fechamento de obra com cerquite', madeirite:'Fechamento de obra com madeirite', drenagem:'Sistema de drenagem'};
+function quantForm(oid){
+  openForm({title:'Calcular materiais', wide:true, semPassos:true,
+    intro:'Fórmulas dos documentos de quantificação da Cariati. A margem de segurança de '+QUANT_MARGEM+'% é um valor provisório: <strong>validar com a engenharia</strong>. Na drenagem, manta e brita seguem a seção padrão do exemplo (2,40 m² e 0,36 m³ por metro) e o tubo arredonda para cima de 5 em 5 m.',
+    fields:[{name:'tipo',label:'O que vai ser calculado',type:'select',options:Object.keys(QUANT_TIPOS).map(function(k){ return [k,QUANT_TIPOS[k]]; }),value:'cerquite'},
+      [{name:'total',label:'Comprimento total (m)',type:'number',min:0,step:'0.01',required:true,hint:'Na drenagem, some os trechos medidos.'},{name:'margem',label:'Margem de segurança (%)',type:'number',min:0,max:100,step:'0.1',value:QUANT_MARGEM}],
+      {name:'dataUso',label:'Data de uso na obra',type:'date',required:true,value:addDays(hoje(),14)},
+      {name:'criar',label:'Criar as solicitações de compra com estas quantidades?',type:'select',options:[['nao','Não, só calcular e mostrar'],['sim','Sim, criar uma necessidade por material']],value:'nao'}],
+    submit:'Calcular',
+    onSubmit:async function(v){
+      if(!(v.total>0)) return 'Informe o comprimento total.';
+      var rows=quantCalcular(v.tipo,v.total,v.margem==null?QUANT_MARGEM:v.margem), tp=QUANT_TIPOS[v.tipo];
+      if(v.criar==='sim'){
+        for(var i=0;i<rows.length;i++){ var x=rows[i];
+          await Store.set('compras',nid(),{obraId:oid, codigo:proximoCodigoCompra(), status:'necessidade', cotacoes:[], prioridade:'media', item:x.item, etapa:0, un:UNIDADES.indexOf(x.un)>=0?x.un:'un', qtd:x.qtd, dataUso:v.dataUso, prazoEntrega:null, critico:false, obs:tp+': '+v.total+' m com margem de '+(v.margem==null?QUANT_MARGEM:v.margem)+'% (calculado no app).', criadoEm:new Date().toISOString(), por:Store.uid||null}); }
+        toast(plural(rows.length,'necessidade criada.','necessidades criadas.')); return;
+      }
+      closeDlg();
+      openDlg('<div class="dlg-h"><h2>'+esc(tp)+'</h2><button type="button" class="btn ghost ico" data-close aria-label="Fechar">✕</button></div><div class="dlg-b"><p class="muted small">Comprimento '+String(v.total).replace('.',',')+' m, margem de '+String(v.margem==null?QUANT_MARGEM:v.margem).replace('.',',')+'%.</p><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Material</th><th>Unidade</th><th>Quantidade</th></tr></thead><tbody>'
+        +rows.map(function(x){ return '<tr><td>'+esc(x.item)+'</td><td>'+esc(x.un)+'</td><td class="num">'+esc(String(x.qtd).replace('.',','))+'</td></tr>'; }).join('')+'</tbody></table></div><p class="small muted" style="margin-top:10px">Para lançar na solicitação, calcule de novo marcando “Sim, criar uma necessidade por material”.</p></div><div class="dlg-f"><button class="btn primary" data-close>Fechar</button></div>');
+      return false;
+    }});
+}
+COBX.quantCalcular=quantCalcular; COBX.compraEtapaFluxo=compraEtapaFluxo; COBX.FLX_COMPRAS=FLX_COMPRAS; COBX.alertasCF=alertasCF; COBX.cfPagCobrar=cfPagCobrar;
+Object.assign(AG,{ 'quant-calc':function(d){ quantForm(d.oid); } });
+
+/* ---------- mapa do fluxo de compras no Fluxo geral ---------- */
+function fluxoCompras(o){
+  var cs=o?byObra('compras',o.id):[], cont={}; cs.forEach(function(c){ var e=o?compraEtapaFluxo(o,c):0; if(e) cont[e]=(cont[e]||0)+1; });
+  var b=o?'#/obra/'+o.id+'/compras':'';
+  var fases=FLX_FASES.map(function(f){
+    return '<li class="cf-f"><h3><span class="jor-n">'+f.n+'</span>'+esc(f.t)+'</h3><ol class="cf-e">'+f.e.map(function(n){ var s=FLX_COMPRAS[n-1], k=cont[n];
+      return '<li><div class="row spread" style="gap:6px"><strong>'+pad2(n)+' · '+esc(s.nome)+'</strong>'+(k?'<a class="chip warn" href="'+b+'" title="Compras desta obra nesta etapa">'+k+'</a>':'')+'</div><div class="tiny muted">'+esc(s.quem)+'</div>'+(s.ret?'<div class="small cf-r"><span aria-hidden="true">◆</span> '+esc(s.ret)+'</div>':'')+'</li>'; }).join('')+'</ol></li>';
+  }).join('');
+  var regras=['Fornecedor: vale o menor preço. Outro só com justificativa registrada.','Divergência na entrega: avisar o fornecedor e acompanhar até concluir. Fica alerta enquanto não for concluída.','Atraso de entrega: avisar o fornecedor e registrar o aviso.','Pagamento do cliente: se não confirmar em '+PAGTO_PRAZO_DIAS+' dias, cobrar.','Quantificação: margem de segurança de '+QUANT_MARGEM+'%, a validar com a engenharia.','Quem paga as compras (cliente ou Cariati) é definido em cada obra.'];
+  return '<section class="card sec"><div class="card-h"><div><h2>Fluxo de compras</h2><p class="muted small">Da quantidade na obra ao material conferido. Os números mostram quantas compras da obra estão em cada etapa'+(o?'':'; escolha uma obra acima')+'.</p></div>'+(o?'<a class="btn sm" href="'+b+'">Abrir compras</a>':'')+'</div><div class="pad"><ol class="cf">'+fases+'</ol><h4 style="margin:16px 0 6px" class="small muted">Regras combinadas</h4><ul class="lst">'+regras.map(function(r){ return '<li>'+esc(r)+'</li>'; }).join('')+'</ul></div></section>';
+}
+function pad2(n){ return (n<10?'0':'')+n; }

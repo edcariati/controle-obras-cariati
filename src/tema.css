@@ -617,3 +617,11 @@ h1{font-size:clamp(26px,1.6vw + 18px,36px);font-weight:700;letter-spacing:-.02em
 .jor ul{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:6px;font-size:13.5px}
 .jor ul a{color:var(--link)}
 @media (max-width:760px){.jor>li:not(:last-child)::after{display:none}}
+
+/* fluxo de compras */
+.cf{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.cf-f{padding:14px;border-radius:var(--r2);background:var(--glass2);border:1px solid var(--line2)}
+.cf-f h3{display:flex;align-items:center;gap:10px;font-size:16px;margin:0 0 10px}
+.cf-e{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.cf-e>li{padding:10px 12px;border-radius:12px;background:var(--glass);border:1px solid var(--line2)}
+.cf-r{margin-top:6px;color:var(--ink2)} .cf-r span{color:var(--cy)}

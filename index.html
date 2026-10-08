@@ -1049,6 +1049,14 @@ h1{font-size:clamp(26px,1.6vw + 18px,36px);font-weight:700;letter-spacing:-.02em
 .jor ul{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:6px;font-size:13.5px}
 .jor ul a{color:var(--link)}
 @media (max-width:760px){.jor>li:not(:last-child)::after{display:none}}
+
+/* fluxo de compras */
+.cf{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.cf-f{padding:14px;border-radius:var(--r2);background:var(--glass2);border:1px solid var(--line2)}
+.cf-f h3{display:flex;align-items:center;gap:10px;font-size:16px;margin:0 0 10px}
+.cf-e{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.cf-e>li{padding:10px 12px;border-radius:12px;background:var(--glass);border:1px solid var(--line2)}
+.cf-r{margin-top:6px;color:var(--ink2)} .cf-r span{color:var(--cy)}
 </style>
 </head>
 <body>
@@ -2434,6 +2442,8 @@ function kcardCompra(o,c){
     +(c.qtd?'<span class="chip">'+esc(String(c.qtd).replace('.',','))+' '+esc(c.un||'')+'</span>':'')
     +(val!=null?'<span class="chip steel">'+brl(val)+'</span>':'')
     +(c.etapa?'<span class="chip">Etapa '+c.etapa+'</span>':'')
+    +(compraEtapaFluxo(o,c)?'<span class="chip" title="Etapa do fluxo de compras">Fluxo '+compraEtapaFluxo(o,c)+'/11</span>':'')
+    +(cfPagCobrar(c)?'<span class="chip crit">Cobrar cliente</span>':'')+(cfDivAberta(c)?'<span class="chip crit">Divergência aberta</span>':'')+(cfAtrasoSemAviso(c)?'<span class="chip crit">Avisar fornecedor</span>':'')
     +(c.critico?'<span class="chip warn">Crítico</span>':'')
     +(lim&&['necessidade','cotacao','aprovacao'].indexOf(c.status)>=0?'<span class="chip '+(atrLim?'crit':'')+'">Pedir até '+fmtC(lim)+'</span>':'')
     +(c.status==='pedido'&&c.pedido&&c.pedido.entregaPrevista?'<span class="chip '+(atrEnt?'crit':'')+'">Entrega '+fmtC(c.pedido.entregaPrevista)+'</span>':'')
@@ -2450,7 +2460,7 @@ function tCompras(o){
   var info=adm?'<div class="row" style="gap:6px;margin:12px 0"><span class="chip '+(o.alcada==null?'warn':'steel')+'">Alçada: '+(o.alcada==null?'não definida':brl(o.alcada))+'</span><span class="chip steel">Margem sobre o orçado: '+(o.margemPreco==null?5:o.margemPreco)+'%</span><button class="btn sm ghost" data-act="obra-editar" data-oid="'+oid+'" data-write>Ajustar</button></div>'
     :'<div class="callout" style="margin:12px 0">Neste contrato (Gestão de Obras) a compra é do cliente. A Cariati confere a especificação e o recebimento, mas não cota, pede nem paga.</div>';
   var lista=(ui.cmpVista==='lista'&&cs.length)?comprasLista(o,cs):'';
-  return '<div class="sec-h"><div><h2>Compras</h2><p class="muted small">'+(adm?'Da necessidade ao pagamento. Compra fora do orçado ou acima da alçada só segue com aprovação do cliente por escrito.':'Necessidades, entregas e conferência de recebimento.')+'</p></div><button class="btn primary" data-act="compra-nova" data-oid="'+oid+'" data-write>+ Necessidade de compra</button></div>'+info
+  return '<div class="sec-h"><div><h2>Compras</h2><p class="muted small">'+(adm?'Da necessidade ao pagamento. Compra fora do orçado ou acima da alçada só segue com aprovação do cliente por escrito.':'Necessidades, entregas e conferência de recebimento.')+'</p></div><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="quant-calc" data-oid="'+oid+'" data-write>Calcular materiais</button><button class="btn primary" data-act="compra-nova" data-oid="'+oid+'" data-write>+ Necessidade de compra</button></div></div>'+info
     +(cs.length?comprasVistaBarra(o,cs)+(lista||'<div class="board">'+cols+'</div>'):'<div class="card empty"><h3>Nenhuma necessidade de compra</h3><p>Registre o que a obra vai precisar, com a data de uso e o prazo de entrega. O app calcula até quando é preciso pedir.</p></div>');
 }
 function compraForm(oid,c){
@@ -2502,9 +2512,9 @@ function openCompra(id){
   var cfHtml=c.conf?'<div class="callout ok" style="margin-top:14px"><strong>Conferido em '+fmt(c.conf.data)+' por '+esc(Names.get(c.conf.por))+'</strong><p class="small">'+esc(c.conf.criterio||'')+'</p>'+(c.conf.obs?'<p class="small">'+esc(c.conf.obs)+'</p>':'')+thumbs(c.conf.fotos)+'</div>':'';
   var hist=(c.hist||[]).slice().reverse().map(function(h){ return '<li>'+fmt(h.data)+': '+esc(COMPRA_ST[h.de]||'—')+' → <strong>'+esc(COMPRA_ST[h.para]||h.para)+'</strong> por '+esc(Names.get(h.por))+(h.nota?' — '+esc(h.nota):'')+'</li>'; }).join('');
   openDlg('<div class="dlg-h"><h2>'+esc(c.item)+'</h2><button type="button" class="btn ghost ico" data-close aria-label="Fechar">✕</button></div><div class="dlg-b">'
-    +'<div class="row" style="margin-bottom:10px"><span class="chip steel">'+esc(COMPRA_ST[c.status])+'</span>'+(c.critico?'<span class="chip warn">Crítico</span>':'')+(c.etapa?'<span class="chip">Etapa '+c.etapa+'</span>':'')+(c.sobMedida?'<span class="chip">Sob medida</span>':'')+(c.concretagem?'<span class="chip">Concretagem</span>':'')+'</div>'
+    +'<div class="row" style="margin-bottom:10px"><span class="chip steel">'+esc(COMPRA_ST[c.status])+'</span>'+(compraEtapaFluxo(o,c)?'<span class="chip">Fluxo: etapa '+compraEtapaFluxo(o,c)+'</span>':'')+(c.critico?'<span class="chip warn">Crítico</span>':'')+(c.etapa?'<span class="chip">Etapa '+c.etapa+'</span>':'')+(c.sobMedida?'<span class="chip">Sob medida</span>':'')+(c.concretagem?'<span class="chip">Concretagem</span>':'')+'</div>'
     +'<dl class="small" style="display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0"><dt class="muted">Quantidade</dt><dd style="margin:0">'+esc(String(c.qtd).replace('.',','))+' '+esc(c.un||'')+'</dd><dt class="muted">Uso na obra</dt><dd style="margin:0">'+fmt(c.dataUso)+'</dd><dt class="muted">Pedir até</dt><dd style="margin:0">'+(lim?fmt(lim)+(compraAtrasadaPedido(c)?' — <strong style="color:var(--crit)">atrasado</strong>':''):'—')+'</dd>'+(adm?'<dt class="muted">Orçado</dt><dd style="margin:0">'+brl(c.orcado)+'</dd>':'')+(c.obs?'<dt class="muted">Especificação</dt><dd style="margin:0;white-space:pre-wrap">'+esc(c.obs)+'</dd>':'')+'</dl>'
-    +foraEscopoHtml(c,'compras')+cotHtml+aprHtml+trHtml+pedHtml+entHtml+cfHtml
+    +foraEscopoHtml(c,'compras')+cotHtml+aprHtml+trHtml+pedHtml+cfBlocos(o,c)+entHtml+cfHtml
     +(hist?'<h3 style="margin-top:18px">Histórico</h3><ul class="small" style="padding-left:18px">'+hist+'</ul>':'')
     +'</div><div class="dlg-f"><button class="btn danger" data-act="compra-excluir" data-id="'+c.id+'" data-write style="margin-right:auto">Excluir</button><button class="btn" data-act="compra-editar" data-id="'+c.id+'" data-write>Editar</button>'+(rot?'<button class="btn primary" data-act="compra-avancar" data-id="'+c.id+'" data-vol="1" data-write>'+rot+'</button>':'')+'</div>', true);
 }
@@ -2601,18 +2611,22 @@ function conferenciaForm(id,vol){
   openForm({title:'Conferir recebimento (FVM)', intro:esc(c.item)+' — '+esc(String(c.entrega?c.entrega.qtd:c.qtd))+' '+esc(c.un||'')+(c.obs?'<br><strong>Especificação:</strong> '+esc(c.obs):''),
     fields:[{name:'resultado',label:'Resultado',type:'radio',required:true,options:[['conferido','Conferido: especificação, quantidade e estado corretos'],['recusado','Recusado']],value:''},
       {name:'criterio',label:'Critério conferido',type:'textarea',rows:2,value:'Especificação, quantidade e estado conferidos contra o pedido e a nota fiscal.'},
-      {name:'obs',label:'Observações',type:'textarea',rows:2,hint:'Obrigatória se recusado.'},{name:'fotos',label:'Fotos do material e da nota',type:'photos',value:[]}],
+      {name:'obs',label:'Observações',type:'textarea',rows:2,hint:'Obrigatória se recusado.'},
+      [{name:'divTipo',label:'Se recusado: tipo da divergência',type:'select',options:selOpts(DIV_TIPOS,'—'),value:''},{name:'avisoForn',label:'Se recusado: fornecedor avisado em',type:'date',value:hoje(),hint:'É obrigatório avisar o fornecedor.'}],
+      {name:'fotos',label:'Fotos do material e da nota',type:'photos',value:[]}],
     submit:'Registrar conferência',
     onSubmit:async function(v){
       if(!v.resultado) return 'Escolha o resultado da conferência.';
       if(v.resultado==='recusado' && !(v.obs||'').trim()) return 'Descreva o motivo da recusa.';
+      if(v.resultado==='recusado' && !v.divTipo) return 'Informe o tipo da divergência.';
+      if(v.resultado==='recusado' && !v.avisoForn) return 'Informe quando o fornecedor foi avisado. É obrigatório avisar o fornecedor.';
       if(v.resultado==='conferido'){
         await Store.add('movEstoque',{obraId:c.obraId, item:c.item, un:c.un||'un', tipo:'entrada', qtd:c.entrega?c.entrega.qtd:c.qtd, data:hoje(), etapa:c.etapa||0, compraId:c.id, obs:'Entrada por conferência de recebimento'});
         await setCompra(c,{status:'conferido', conf:{data:hoje(), resultado:'conferido', criterio:v.criterio||'', obs:v.obs||'', fotos:v.fotos||[], por:Store.uid||null}},'Recebimento conferido');
         toast('Recebimento conferido e material lançado no estoque.');
       } else {
         await Store.add('ocorrencias',{obraId:c.obraId, etapa:c.etapa||0, tipo:'falha', gravidade:'importante', local:'', descricao:'Material recusado no recebimento: '+c.item+'. '+v.obs.trim(), prestadorId:'', prazo:addDays(hoje(),3), status:'aberta', criadoEm:new Date().toISOString(), por:Store.uid||null, interacoes:[], fotos:v.fotos||[], origem:'recebimento', reabertas:0});
-        await setCompra(c,{status:adm?'pedido':'necessidade', entrega:null, conf:null},'Recebimento recusado: '+v.obs.trim());
+        await setCompra(c,{status:adm?'pedido':'necessidade', entrega:null, conf:null, diverg:{tipo:v.divTipo, desc:v.obs.trim(), avisadoEm:v.avisoForn, abertaEm:hoje(), por:Store.uid||null}},'Recebimento recusado: '+v.obs.trim());
         toast('Recusa registrada e ocorrência aberta.');
       }
       return depoisCompra(id,vol);
@@ -2843,7 +2857,7 @@ function alertasP3(o){
   if(la.length) A.push({k:'warn', t:plural(la.length,'locação com devolução atrasada','locações com devolução atrasada')+': cada dia extra é cobrado.', to:base+'locacoes'});
   var dn=byObra('danos',oid).filter(function(d){return d.status==='aberta';});
   if(dn.length) A.push({k:'warn', t:plural(dn.length,'dano em aberto','danos em aberto')+', somando '+brl(dn.reduce(function(s,d){return s+(Number(d.custo)||0);},0))+'.', to:base+'contratos'});
-  return A.concat(alertasP4(o)).concat(alertasP5(o)).concat(alertasP7(o)).concat(alertasG(o));
+  return A.concat(alertasCF(o)).concat(alertasP4(o)).concat(alertasP5(o)).concat(alertasP7(o)).concat(alertasG(o));
 }
 function indRowsP3(o){
   var oid=o.id, out='', cs=byObra('compras',oid), ls=byObra('locacoes',oid), ts=byObra('termos',oid), ds=byObra('danos',oid);
@@ -5660,6 +5674,173 @@ function resumoProximos(o){
     +(pg.length?'<ul class="alerts">'+pg.map(function(p){ var v=p.venc&&p.venc<hj; return '<li><span class="dot '+(v?'crit':'steel')+'"></span><div class="grow">'+esc(short(p.desc,60))+'<div class="tiny muted">'+(p.venc?fmt(p.venc):'sem data')+(v?' · vencido':'')+' · '+brl(p.valor)+'</div></div><a class="small" href="'+p.to+'">Abrir</a></li>'; }).join('')+'</ul>':'<p class="muted small" style="padding:14px 16px">Nenhum pagamento em aberto.</p>')+'</section>':'';
   return '<div class="grid cols2">'+tarHtml+pgHtml+'</div>';
 }
+/* ================= FLUXO DE COMPRAS DA CARIATI (11 etapas em 5 fases) =================
+   Integra ao módulo de compras o fluxograma do setor: etapa de cada compra, pagamento pelo cliente (ou pela Cariati),
+   aviso ao fornecedor em divergência e atraso, e a calculadora de quantificação de materiais.
+   Regras combinadas com a Cariati:
+   · menor preço, ou outro fornecedor com justificativa (já existente na escolha da cotação);
+   · divergência na entrega: avisar o fornecedor e acompanhar até concluir;
+   · cliente que não confirma o pagamento: cobrar depois de 2 dias;
+   · margem de segurança na quantificação: 5%, a validar com a engenharia. */
+var PAGTO_PRAZO_DIAS=2;
+var QUANT_MARGEM=5;
+var PAG_QUEM={cliente:'Cliente paga', cariati:'Cariati paga'};
+var DIV_TIPOS=[['falta','Falta de material'],['excesso','Excesso de material'],['errado','Item errado'],['espec','Fora da especificação'],['avaria','Avaria ou mau estado'],['outro','Outro']];
+var FLX_FASES=[
+  {n:1,t:'Quantificação e solicitação',e:[1,2,3]},{n:2,t:'Cotação',e:[4,5]},{n:3,t:'Aprovação e compra',e:[6,7]},{n:4,t:'Pagamento e arquivamento',e:[8,9]},{n:5,t:'Entrega e conferência',e:[10,11]}];
+var FLX_COMPRAS=[
+  {n:1,nome:'Quantificação do material',quem:'Obras',ret:'Sem a relação de materiais definida, não há o que solicitar.'},
+  {n:2,nome:'Solicitação recebida e analisada',quem:'Obras envia · Compras confere',ret:'Solicitação sem quantidade, especificação e prazo conferidos não é registrada.'},
+  {n:3,nome:'Registro no sistema',quem:'Compras',ret:'A cotação só começa com a solicitação criada.'},
+  {n:4,nome:'Fornecedores e cotação',quem:'Compras',ret:'A análise só começa com as cotações dos fornecedores selecionados.'},
+  {n:5,nome:'Análise e negociação',quem:'Compras',ret:''},
+  {n:6,nome:'Aprovação do fornecedor',quem:'Compras',ret:'Sem fornecedor aprovado, não se emite a ordem de compra. Vale o menor preço; outro, só com justificativa.'},
+  {n:7,nome:'Ordem de compra',quem:'Compras',ret:''},
+  {n:8,nome:'Finalização e pedido de pagamento',quem:'Compras',ret:'O pagamento só é pedido depois do pedido finalizado. Cliente: cobrança depois de '+PAGTO_PRAZO_DIAS+' dias sem confirmação.'},
+  {n:9,nome:'Confirmação do pagamento',quem:'Compras',ret:'O comprovante só vai ao fornecedor depois da confirmação do pagamento.'},
+  {n:10,nome:'Acompanhamento da entrega',quem:'Compras acompanha · Obras recebe',ret:'Atraso: avisar o fornecedor e registrar.'},
+  {n:11,nome:'Conferência do recebimento',quem:'Obras confere · Compras confirma',ret:'A compra só se encerra com quantidade e especificações conferidas. Divergência: avisar o fornecedor e acompanhar até concluir.'}];
+function pagQuemObra(o){ return (o&&o.pagCompras)||'cliente'; }
+function pagDe(c){ return c.pagto||{}; }
+/* em qual das 11 etapas a compra está (0 = encerrada) */
+function compraEtapaFluxo(o,c){
+  var st=c.status, p=pagDe(c);
+  if(st==='necessidade') return 2;
+  if(st==='cotacao') return (c.cotacoes||[]).length?5:4;
+  if(st==='aprovacao') return c.aprov?7:6;
+  if(st==='pedido'){ if(!p.solicitadoEm) return 8; if(!p.confirmadoEm||!p.comprovanteEm) return 9; return 10; }
+  if(st==='entregue') return 11;
+  return 0;
+}
+function cfPagCobrar(c){ var p=pagDe(c); return !!(p.solicitadoEm&&!p.confirmadoEm&&p.quem!=='cariati'&&diffDays(p.solicitadoEm,hoje())>PAGTO_PRAZO_DIAS); }
+function cfPagDias(c){ var p=pagDe(c); return p.solicitadoEm?diffDays(p.solicitadoEm,hoje()):0; }
+function cfDivAberta(c){ return !!(c.diverg&&!c.diverg.resolvidoEm); }
+function cfAtrasoSemAviso(c){ return pedidoAtrasado(c)&&!c.avisoAtraso; }
+
+/* ---------- blocos no diálogo da compra ---------- */
+function cfBlocos(o,c){
+  if(!modAdm(o)) return cfDivHtml(c)+cfAtrasoHtml(c);
+  var h='', p=pagDe(c), e=compraEtapaFluxo(o,c), quem=p.quem||pagQuemObra(o);
+  if(c.status==='pedido'||p.solicitadoEm){
+    var cobrar=cfPagCobrar(c);
+    h+='<div class="callout'+(cobrar?' crit':(p.comprovanteEm?' ok':''))+'" style="margin-top:14px"><strong>Pagamento (etapas 8 e 9) · '+esc(PAG_QUEM[quem])+'</strong><ul class="small" style="margin:6px 0 0;padding-left:18px">'
+      +'<li>Pedido de pagamento: '+(p.solicitadoEm?'solicitado em '+fmt(p.solicitadoEm)+(p.pdf?' · PDF salvo na pasta do cliente':''):'ainda não solicitado')+'</li>'
+      +'<li>Confirmação do pagamento: '+(p.confirmadoEm?'confirmado em '+fmt(p.confirmadoEm):(p.solicitadoEm?(quem==='cariati'?'a Cariati ainda não pagou':'aguardando o cliente'+(cobrar?' — há '+plural(cfPagDias(c),'dia','dias')+', cobrar agora':' (cobrança depois de '+PAGTO_PRAZO_DIAS+' dias)')):'—'))+'</li>'
+      +'<li>Comprovante ao fornecedor: '+(p.comprovanteEm?'enviado em '+fmt(p.comprovanteEm):'ainda não enviado')+'</li></ul>'+anexosHtml(p.anexos)
+      +(c.status==='pedido'?'<p style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'
+        +(!p.solicitadoEm?'<button class="btn sm primary" data-act="pg-pedir" data-id="'+c.id+'" data-write>Pedir pagamento</button>':'')
+        +(p.solicitadoEm&&!p.confirmadoEm?'<button class="btn sm primary" data-act="pg-confirmar" data-id="'+c.id+'" data-write>Confirmar pagamento</button>':'')
+        +(p.confirmadoEm&&!p.comprovanteEm?'<button class="btn sm primary" data-act="pg-comprovante" data-id="'+c.id+'" data-write>Comprovante enviado ao fornecedor</button>':'')+'</p>':'')+'</div>';
+  }
+  return h+cfAtrasoHtml(c)+cfDivHtml(c)+(e?'<p class="small muted" style="margin-top:12px">Etapa '+e+' do fluxo de compras: '+esc(FLX_COMPRAS[e-1].nome)+'.</p>':'');
+}
+function cfAtrasoHtml(c){
+  if(!pedidoAtrasado(c)) return '';
+  return '<div class="callout crit" style="margin-top:14px"><strong>Entrega atrasada desde '+fmt(c.pedido.entregaPrevista)+'</strong><p class="small">'+(c.avisoAtraso?'Fornecedor avisado em '+fmt(c.avisoAtraso.data)+(c.avisoAtraso.obs?' — '+esc(c.avisoAtraso.obs):'')+'.':'O fornecedor ainda não foi avisado do atraso.')+'</p>'
+    +(c.avisoAtraso?'':'<p style="margin-top:8px"><button class="btn sm primary" data-act="av-atraso" data-id="'+c.id+'" data-write>Registrar aviso ao fornecedor</button></p>')+'</div>';
+}
+function cfDivHtml(c){
+  var d=c.diverg; if(!d) return '';
+  var tipo=(DIV_TIPOS.filter(function(t){ return t[0]===d.tipo; })[0]||['',''])[1]||d.tipo;
+  return '<div class="callout '+(d.resolvidoEm?'ok':'crit')+'" style="margin-top:14px"><strong>Divergência na entrega: '+esc(tipo)+(d.resolvidoEm?' · concluída em '+fmt(d.resolvidoEm):' · não concluída há '+plural(diffDays(d.abertaEm,hoje()),'dia','dias'))+'</strong>'
+    +'<p class="small">'+esc(d.desc||'')+'</p><p class="small">Fornecedor avisado em '+fmt(d.avisadoEm)+'.'+(d.resolvidoEm&&d.solucao?' Solução: '+esc(d.solucao):'')+'</p>'
+    +(d.resolvidoEm?'':'<p style="margin-top:8px"><button class="btn sm primary" data-act="dv-resolver" data-id="'+c.id+'" data-write>Marcar como concluída</button></p>')+'</div>';
+}
+
+/* ---------- ações de pagamento, aviso e divergência ---------- */
+function pgPedir(id){
+  var c=G('compras',id), o=G('obras',c.obraId);
+  openForm({title:'Pedir pagamento', intro:esc(c.item)+' — '+brl(valorCompra(c))+'<br>Depois de finalizar o pedido na plataforma, peça o pagamento ao cliente (WhatsApp) e salve o pedido em PDF na pasta do cliente.',
+    fields:[[{name:'data',label:'Data do pedido de pagamento',type:'date',required:true,value:hoje()},{name:'quem',label:'Quem paga',type:'select',options:Object.keys(PAG_QUEM).map(function(k){ return [k,PAG_QUEM[k]]; }),value:pagQuemObra(o)}],
+      {name:'pdf',label:'Pedido em PDF salvo na pasta do cliente?',type:'select',options:[['sim','Sim'],['nao','Ainda não']],value:'sim'}],
+    submit:'Registrar pedido de pagamento',
+    onSubmit:async function(v){ await setCompra(c,{pagto:Object.assign({},pagDe(c),{solicitadoEm:v.data, quem:v.quem, pdf:v.pdf==='sim'})},'Pagamento solicitado ('+PAG_QUEM[v.quem]+')'); openCompra(id); return false; }});
+}
+function pgConfirmar(id){
+  var c=G('compras',id);
+  openForm({title:'Confirmar pagamento', intro:esc(c.item), fields:[{name:'data',label:'Data da confirmação',type:'date',required:true,value:hoje()},{name:'anexos',label:'Comprovante (print ou PDF)',type:'anexos',value:[]}], submit:'Confirmar',
+    onSubmit:async function(v){ await setCompra(c,{pagto:Object.assign({},pagDe(c),{confirmadoEm:v.data, anexos:v.anexos||[]})},'Pagamento confirmado'); openCompra(id); return false; }});
+}
+async function pgComprovante(id){
+  var c=G('compras',id); var p=pagDe(c);
+  await setCompra(c,{pagto:Object.assign({},p,{comprovanteEm:hoje()})},'Comprovante enviado ao fornecedor'); toast('Comprovante registrado. Acompanhe a entrega.'); openCompra(id);
+}
+function avAtraso(id){
+  var c=G('compras',id);
+  openForm({title:'Aviso de atraso ao fornecedor', intro:esc(c.item)+' — entrega prevista em '+fmt(c.pedido.entregaPrevista), fields:[{name:'data',label:'Data do aviso',type:'date',required:true,value:hoje()},{name:'obs',label:'O que o fornecedor respondeu',type:'textarea',rows:2,ph:'Nova data combinada, motivo…'}], submit:'Registrar aviso',
+    onSubmit:async function(v){ await setCompra(c,{avisoAtraso:{data:v.data, obs:(v.obs||'').trim(), por:Store.uid||null}},'Fornecedor avisado do atraso'); openCompra(id); return false; }});
+}
+function dvResolver(id){
+  var c=G('compras',id);
+  openForm({title:'Concluir divergência', intro:esc(c.item), fields:[{name:'data',label:'Data da solução',type:'date',required:true,value:hoje()},{name:'solucao',label:'Como foi resolvido',type:'textarea',required:true,rows:2,ph:'Reposição, crédito, devolução…'}], submit:'Marcar como concluída',
+    onSubmit:async function(v){ if(!(v.solucao||'').trim()) return 'Descreva como foi resolvido.'; await setCompra(c,{diverg:Object.assign({},c.diverg,{resolvidoEm:v.data, solucao:v.solucao.trim()})},'Divergência concluída'); openCompra(id); return false; }});
+}
+Object.assign(AG,{
+  'pg-pedir':function(d){ pgPedir(d.id); }, 'pg-confirmar':function(d){ pgConfirmar(d.id); }, 'pg-comprovante':function(d){ pgComprovante(d.id); },
+  'av-atraso':function(d){ avAtraso(d.id); }, 'dv-resolver':function(d){ dvResolver(d.id); }
+});
+/* alertas da obra: cobrança do cliente, atraso sem aviso, divergência em aberto */
+function alertasCF(o){
+  var A=[], cs=byObra('compras',o.id), base='#/obra/'+o.id+'/compras';
+  var cob=cs.filter(cfPagCobrar); if(cob.length) A.push({k:'crit', t:plural(cob.length,'pagamento do cliente sem confirmação','pagamentos do cliente sem confirmação')+' há mais de '+PAGTO_PRAZO_DIAS+' dias. Cobrar o cliente: '+cob.slice(0,2).map(function(c){ return c.item; }).join(', ')+(cob.length>2?'…':'')+'.', to:base});
+  var sa=cs.filter(cfAtrasoSemAviso); if(sa.length) A.push({k:'crit', t:plural(sa.length,'entrega atrasada','entregas atrasadas')+' sem aviso ao fornecedor: '+sa.slice(0,2).map(function(c){ return c.item; }).join(', ')+'.', to:base});
+  var dv=cs.filter(cfDivAberta); if(dv.length) A.push({k:'warn', t:plural(dv.length,'divergência de entrega não concluída','divergências de entrega não concluídas')+': '+dv.slice(0,2).map(function(c){ return c.item; }).join(', ')+'.', to:base});
+  return A;
+}
+
+/* ---------- quantificação de materiais (etapa 1) ---------- */
+function quantCalcular(tipo,total,margem){
+  var m=1+(Number(margem)||0)/100, c=total*m, ceil=Math.ceil, r=[];
+  if(tipo==='cerquite'){
+    var cab=ceil(c/1.5)+2;
+    r=[['Cerquite (tela de sinalização)','m',ceil(c)],['Área de cerquite','m²',ceil(c*1.2)],['Caibro 5x5 cm','un',cab],['Enforca-gato (abraçadeira)','un',cab*6+50]];
+  } else if(tipo==='madeirite'){
+    var ch=ceil(c/1.2)+2, sar=ceil(c*3+12);
+    r=[['Madeirite (placa 1,10 × 2,20 m)','chapas',ch],['Caibro de apoio','un',ch+2],['Prego 19x21','kg',5],['Sarrafo 7x2','m',sar],['Sarrafo 7x2','un',ceil(sar/3)]];
+  } else {
+    var tubo=ceil(c/5)*5;
+    r=[['Tubo de drenagem','m',tubo],['Manta geotêxtil (Bidim)','m²',Math.round(tubo*2.4*100)/100],['Pedra brita','m³',Math.round(tubo*0.36*100)/100]];
+  }
+  return r.map(function(x){ return {item:x[0], un:x[1], qtd:x[2]}; });
+}
+var QUANT_TIPOS={cerquite:'Fechamento de obra com cerquite', madeirite:'Fechamento de obra com madeirite', drenagem:'Sistema de drenagem'};
+function quantForm(oid){
+  openForm({title:'Calcular materiais', wide:true, semPassos:true,
+    intro:'Fórmulas dos documentos de quantificação da Cariati. A margem de segurança de '+QUANT_MARGEM+'% é um valor provisório: <strong>validar com a engenharia</strong>. Na drenagem, manta e brita seguem a seção padrão do exemplo (2,40 m² e 0,36 m³ por metro) e o tubo arredonda para cima de 5 em 5 m.',
+    fields:[{name:'tipo',label:'O que vai ser calculado',type:'select',options:Object.keys(QUANT_TIPOS).map(function(k){ return [k,QUANT_TIPOS[k]]; }),value:'cerquite'},
+      [{name:'total',label:'Comprimento total (m)',type:'number',min:0,step:'0.01',required:true,hint:'Na drenagem, some os trechos medidos.'},{name:'margem',label:'Margem de segurança (%)',type:'number',min:0,max:100,step:'0.1',value:QUANT_MARGEM}],
+      {name:'dataUso',label:'Data de uso na obra',type:'date',required:true,value:addDays(hoje(),14)},
+      {name:'criar',label:'Criar as solicitações de compra com estas quantidades?',type:'select',options:[['nao','Não, só calcular e mostrar'],['sim','Sim, criar uma necessidade por material']],value:'nao'}],
+    submit:'Calcular',
+    onSubmit:async function(v){
+      if(!(v.total>0)) return 'Informe o comprimento total.';
+      var rows=quantCalcular(v.tipo,v.total,v.margem==null?QUANT_MARGEM:v.margem), tp=QUANT_TIPOS[v.tipo];
+      if(v.criar==='sim'){
+        for(var i=0;i<rows.length;i++){ var x=rows[i];
+          await Store.set('compras',nid(),{obraId:oid, codigo:proximoCodigoCompra(), status:'necessidade', cotacoes:[], prioridade:'media', item:x.item, etapa:0, un:UNIDADES.indexOf(x.un)>=0?x.un:'un', qtd:x.qtd, dataUso:v.dataUso, prazoEntrega:null, critico:false, obs:tp+': '+v.total+' m com margem de '+(v.margem==null?QUANT_MARGEM:v.margem)+'% (calculado no app).', criadoEm:new Date().toISOString(), por:Store.uid||null}); }
+        toast(plural(rows.length,'necessidade criada.','necessidades criadas.')); return;
+      }
+      closeDlg();
+      openDlg('<div class="dlg-h"><h2>'+esc(tp)+'</h2><button type="button" class="btn ghost ico" data-close aria-label="Fechar">✕</button></div><div class="dlg-b"><p class="muted small">Comprimento '+String(v.total).replace('.',',')+' m, margem de '+String(v.margem==null?QUANT_MARGEM:v.margem).replace('.',',')+'%.</p><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Material</th><th>Unidade</th><th>Quantidade</th></tr></thead><tbody>'
+        +rows.map(function(x){ return '<tr><td>'+esc(x.item)+'</td><td>'+esc(x.un)+'</td><td class="num">'+esc(String(x.qtd).replace('.',','))+'</td></tr>'; }).join('')+'</tbody></table></div><p class="small muted" style="margin-top:10px">Para lançar na solicitação, calcule de novo marcando “Sim, criar uma necessidade por material”.</p></div><div class="dlg-f"><button class="btn primary" data-close>Fechar</button></div>');
+      return false;
+    }});
+}
+COBX.quantCalcular=quantCalcular; COBX.compraEtapaFluxo=compraEtapaFluxo; COBX.FLX_COMPRAS=FLX_COMPRAS; COBX.alertasCF=alertasCF; COBX.cfPagCobrar=cfPagCobrar;
+Object.assign(AG,{ 'quant-calc':function(d){ quantForm(d.oid); } });
+
+/* ---------- mapa do fluxo de compras no Fluxo geral ---------- */
+function fluxoCompras(o){
+  var cs=o?byObra('compras',o.id):[], cont={}; cs.forEach(function(c){ var e=o?compraEtapaFluxo(o,c):0; if(e) cont[e]=(cont[e]||0)+1; });
+  var b=o?'#/obra/'+o.id+'/compras':'';
+  var fases=FLX_FASES.map(function(f){
+    return '<li class="cf-f"><h3><span class="jor-n">'+f.n+'</span>'+esc(f.t)+'</h3><ol class="cf-e">'+f.e.map(function(n){ var s=FLX_COMPRAS[n-1], k=cont[n];
+      return '<li><div class="row spread" style="gap:6px"><strong>'+pad2(n)+' · '+esc(s.nome)+'</strong>'+(k?'<a class="chip warn" href="'+b+'" title="Compras desta obra nesta etapa">'+k+'</a>':'')+'</div><div class="tiny muted">'+esc(s.quem)+'</div>'+(s.ret?'<div class="small cf-r"><span aria-hidden="true">◆</span> '+esc(s.ret)+'</div>':'')+'</li>'; }).join('')+'</ol></li>';
+  }).join('');
+  var regras=['Fornecedor: vale o menor preço. Outro só com justificativa registrada.','Divergência na entrega: avisar o fornecedor e acompanhar até concluir. Fica alerta enquanto não for concluída.','Atraso de entrega: avisar o fornecedor e registrar o aviso.','Pagamento do cliente: se não confirmar em '+PAGTO_PRAZO_DIAS+' dias, cobrar.','Quantificação: margem de segurança de '+QUANT_MARGEM+'%, a validar com a engenharia.','Quem paga as compras (cliente ou Cariati) é definido em cada obra.'];
+  return '<section class="card sec"><div class="card-h"><div><h2>Fluxo de compras</h2><p class="muted small">Da quantidade na obra ao material conferido. Os números mostram quantas compras da obra estão em cada etapa'+(o?'':'; escolha uma obra acima')+'.</p></div>'+(o?'<a class="btn sm" href="'+b+'">Abrir compras</a>':'')+'</div><div class="pad"><ol class="cf">'+fases+'</ol><h4 style="margin:16px 0 6px" class="small muted">Regras combinadas</h4><ul class="lst">'+regras.map(function(r){ return '<li>'+esc(r)+'</li>'; }).join('')+'</ul></div></section>';
+}
+function pad2(n){ return (n<10?'0':'')+n; }
 /* ================= CADASTRO DA OBRA =================
    Painel único com os dados do cliente, da obra, da equipe, do contrato e os arquivos recebidos dos outros aplicativos.
    Dados pessoais e de contrato ficam na coleção própria "cadastros" (um registro por obra) e os arquivos em "arquivosObra":
@@ -5761,7 +5942,7 @@ function tCadastro(o){
     +'<div class="row" style="gap:8px"><div class="cad-prog" role="img" aria-label="Cadastro '+Math.round(k.pct*100)+'% completo"><i style="width:'+Math.round(k.pct*100)+'%"></i></div><span class="chip '+(k.faltam.length?'warn':'ok')+'">'+(k.faltam.length?'Cadastro '+k.ok+' de '+k.total:'Cadastro completo')+'</span></div></div>';
   var falta=k.faltam.length?'<div class="callout" style="margin:12px 0"><strong>Falta preencher</strong><ul>'+k.faltam.map(function(f){ return '<li>'+esc(f)+'</li>'; }).join('')+'</ul></div>':'';
   var cli=cadCard('Dados do cliente',(G('clientes',o.clienteId)?'Vinculado ao cadastro de clientes.':'<button class="linkbtn" data-act="cad-escolher-cliente" data-oid="'+oid+'" data-write>Escolher um cliente já cadastrado</button>'),cadDl([['Nome ou razão social',o.cliente],['Tipo',c.cliente.tipo==='pj'?'Pessoa jurídica':(c.cliente.tipo==='pf'?'Pessoa física':'')],['CPF ou CNPJ',c.cliente.doc],['RG ou inscrição estadual',c.cliente.rg],['Profissão',c.cliente.profissao],['Telefone ou WhatsApp',wa(c.cliente.telefone),true],['E-mail',c.cliente.email],['Endereço do cliente',cadEnd(c.cliente)],['Contato preferido',CAD_CONTATO[c.cliente.contato]||''],['Observações',c.cliente.obs]]),ed('cad-cliente'));
-  var obr=cadCard('Dados da obra','',cadDl([['Nome',o.nome],['Código',o.codigo],['Tipologia',o.tipologia],['Tipo da obra',o.tipoObra],['Modalidade',o.modalidade],['Fase',CAD_FASE[c.obra.fase]||''],['Endereço',o.endereco],['Bairro',c.obra.bairro],['Cidade e UF',[c.obra.cidade,c.obra.uf].filter(Boolean).join(' / ')],['CEP',c.obra.cep],['Área',o.area>0?String(o.area).replace('.',',')+' m²':''],['Início',o.inicio?fmt(o.inicio):''],['Previsão de término',c.obra.previsaoFim?fmt(c.obra.previsaoFim):''],['Matrícula do imóvel',c.obra.matricula],['Inscrição municipal',c.obra.inscricao],['Origem do contrato',c.obra.origem],['Etiquetas',(c.obra.etiquetas||[]).map(function(e){ return '<span class="chip steel">'+esc(e)+'</span>'; }).join(' '),true]]),ed('cad-obra'));
+  var obr=cadCard('Dados da obra','',cadDl([['Nome',o.nome],['Código',o.codigo],['Tipologia',o.tipologia],['Tipo da obra',o.tipoObra],['Modalidade',o.modalidade],['Pagamento das compras',PAG_QUEM[o.pagCompras||'cliente']],['Fase',CAD_FASE[c.obra.fase]||''],['Endereço',o.endereco],['Bairro',c.obra.bairro],['Cidade e UF',[c.obra.cidade,c.obra.uf].filter(Boolean).join(' / ')],['CEP',c.obra.cep],['Área',o.area>0?String(o.area).replace('.',',')+' m²':''],['Início',o.inicio?fmt(o.inicio):''],['Previsão de término',c.obra.previsaoFim?fmt(c.obra.previsaoFim):''],['Matrícula do imóvel',c.obra.matricula],['Inscrição municipal',c.obra.inscricao],['Origem do contrato',c.obra.origem],['Etiquetas',(c.obra.etiquetas||[]).map(function(e){ return '<span class="chip steel">'+esc(e)+'</span>'; }).join(' '),true]]),ed('cad-obra'));
   var eq=cadCard('Equipe e responsáveis','',cadDl([['Responsável técnico',c.equipe.respTecnico],['ART ou RRT nº',c.equipe.registro],['Engenheiro ou arquiteto da obra',c.equipe.engenheiro],['Mestre de obras',c.equipe.mestre],['Compras',c.equipe.compras],['Financeiro',c.equipe.financeiro],['Observações',c.equipe.obs]]),ed('cad-equipe'));
   var ct=ve?cadCard('Contrato e valores','Só quem tem acesso ao financeiro vê este quadro.',cadDl([['Valor do contrato',c.contrato.valor!=null&&c.contrato.valor!==''?brl(c.contrato.valor):''],['Valor estimado',c.contrato.estimado!=null&&c.contrato.estimado!==''?brl(c.contrato.estimado):''],['Data de assinatura',c.contrato.assinatura?fmt(c.contrato.assinatura):''],['Forma de pagamento',c.contrato.forma],['Empresa do grupo',empresaNome(o.empresaId)],['Alçada de compra',o.alcada!=null?brl(o.alcada):'']])+'<p class="small" style="margin-top:8px"><button class="linkbtn" data-act="obra-editar" data-oid="'+oid+'" data-write>Alçada, margens e parâmetros da obra</button></p>',ed('cad-contrato')):'';
   var linhas=arq.length?'<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Arquivo</th><th>Categoria</th><th>Origem</th><th>Recebido em</th><th></th></tr></thead><tbody>'+arq.map(function(a){
@@ -6595,7 +6776,7 @@ function vFluxo(){
     +obras.map(function(x){ return '<option value="'+esc(x.id)+'"'+(o&&o.id===x.id?' selected':'')+'>'+esc(x.nome)+'</option>'; }).join('')+'</select></div>';
   var leg=o?'<div class="flx-leg" aria-label="Legenda">'+STATUS_ORDER.map(function(s){ return '<span><i class="flx-dot '+s+'"></i>'+STATUS[s]+'</span>'; }).join('')+'<span><i class="flx-dot crit"></i>Ocorrência crítica aberta</span></div>':'<p class="muted small">Escolha uma obra para ver em que etapa ela está.</p>';
   var h='<div class="wrap"><div class="sec-h"><div><h1>Fluxo geral</h1><p class="muted" style="margin-top:4px">O caminho de uma obra, da pré-obra ao pós-obra. Cada etapa só é liberada na vistoria (losango).</p></div>'+seletor+'</div>'+leg;
-  h+=fluxoJornada(o)+fluxoServicos(o)+fluxoRitos(o);
+  h+=fluxoJornada(o)+fluxoServicos(o)+fluxoCompras(o)+fluxoRitos(o);
   h+='<div class="flx"><div class="flx-fim ini"><strong>Início</strong><span>A obra abre com terreno regularizado, projetos, orçamento, contrato e licenças</span></div>';
   FASES.forEach(function(f,fi){
     h+='<section class="flx-fase" aria-label="Fase '+(fi+1)+': '+esc(f.nome)+'"><h2><span class="flx-num">'+(fi+1)+'</span>'+esc(f.nome)+'</h2><div class="flx-row">';
@@ -7567,7 +7748,7 @@ function obraForm(o){
       [{name:'codigo',label:'Código',value:o&&o.codigo,ph:'CA000000'},{name:'cliente',label:'Cliente',value:o&&o.cliente}],
       {name:'endereco',label:'Endereço da obra',value:o&&o.endereco},
       [{name:'tipologia',label:'Tipologia',type:'select',options:TIPOLOGIAS.map(function(t){return [t,t];}),value:(o&&o.tipologia)||TIPOLOGIAS[0]},{name:'tipoObra',label:'Tipo da obra',type:'select',options:OBRA_TIPOS.map(function(t){return [t,t];}),value:(o&&o.tipoObra)||OBRA_TIPOS[0]}],
-      [{name:'modalidade',label:'Modalidade do contrato',type:'select',options:MODALIDADES.map(function(t){return [t,t];}),value:(o&&o.modalidade)||MODALIDADES[0]}],
+      [{name:'modalidade',label:'Modalidade do contrato',type:'select',options:MODALIDADES.map(function(t){return [t,t];}),value:(o&&o.modalidade)||MODALIDADES[0]},{name:'pagCompras',label:'Pagamento das compras',type:'select',options:Object.keys(PAG_QUEM).map(function(k){return [k,PAG_QUEM[k]];}),value:(o&&o.pagCompras)||'cliente',hint:'Quem paga os fornecedores desta obra. Aparece na etapa 8 do fluxo de compras.'}],
       [{name:'area',label:'Área (m²)',type:'number',step:'0.01',min:0,value:o&&o.area},{name:'inicio',label:'Início da obra',type:'date',value:o&&o.inicio}],
       [{name:'metaPPC',label:'Meta de PPC (%)',type:'number',min:0,max:100,value:o&&o.metaPPC!=null?o.metaPPC:80,hint:'Valor provisório, a definir pela Cariati.'},{name:'diasEscalar',label:'Dias de atraso para escalar',type:'number',min:1,value:o&&o.diasEscalar!=null?o.diasEscalar:7,hint:'Apontamento vencido há mais dias vai à diretoria.'}],
       [{name:'alcada',label:'Alçada de compra e locação (R$)',type:'number',min:0,step:'0.01',value:o&&o.alcada,hint:'Acima disso, a compra exige aprovação do cliente. A definir pela Cariati.'},{name:'margemPreco',label:'Margem aceita sobre o orçado (%)',type:'number',min:0,step:'0.1',value:o&&o.margemPreco!=null?o.margemPreco:5,hint:'Valor provisório.'}],
@@ -7577,7 +7758,7 @@ function obraForm(o){
     extra:novo?'':'<button type="button" class="btn danger" data-act="obra-excluir" data-oid="'+o.id+'" style="margin-right:auto">Excluir obra</button>',
     onSubmit:async function(v){
       if(!(v.nome||'').trim()) return 'Informe o nome da obra.';
-      var data=Object.assign({}, o||{}, {nome:v.nome.trim(), codigo:v.codigo||'', cliente:v.cliente||'', endereco:v.endereco||'', tipologia:v.tipologia, tipoObra:v.tipoObra||'', modalidade:v.modalidade, area:v.area, inicio:v.inicio||'', metaPPC:v.metaPPC==null?80:v.metaPPC, diasEscalar:v.diasEscalar==null?7:v.diasEscalar, alcada:v.alcada, margemPreco:v.margemPreco==null?5:v.margemPreco, empresaId:v.empresaId||'', tolerAvanco:v.tolerAvanco==null?5:v.tolerAvanco, abcA:v.abcA==null?80:v.abcA, abcB:v.abcB==null?95:v.abcB});
+      var data=Object.assign({}, o||{}, {nome:v.nome.trim(), codigo:v.codigo||'', cliente:v.cliente||'', endereco:v.endereco||'', tipologia:v.tipologia, tipoObra:v.tipoObra||'', pagCompras:v.pagCompras||'cliente', modalidade:v.modalidade, area:v.area, inicio:v.inicio||'', metaPPC:v.metaPPC==null?80:v.metaPPC, diasEscalar:v.diasEscalar==null?7:v.diasEscalar, alcada:v.alcada, margemPreco:v.margemPreco==null?5:v.margemPreco, empresaId:v.empresaId||'', tolerAvanco:v.tolerAvanco==null?5:v.tolerAvanco, abcA:v.abcA==null?80:v.abcA, abcB:v.abcB==null?95:v.abcB});
       if(novo) data.criadoEm=new Date().toISOString();
       var id=novo?nid():o.id; await Store.set('obras', id, data);
       if(novo) location.hash='#/obra/'+id+'/cadastro';

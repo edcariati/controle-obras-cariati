@@ -81,7 +81,12 @@ test('fase 3 · recebimento recusado abre ocorrência e devolve a compra', async
   await e.submit({ resultado: 'recusado', criterio: '', obs: '' });
   assert.match(e.erroForm(), /motivo da recusa/);
   await e.submit({ resultado: 'recusado', obs: 'Slump fora do especificado' });
+  assert.match(e.erroForm(), /tipo da divergência/);
+  await e.submit({ resultado: 'recusado', obs: 'Slump fora do especificado', divTipo: 'espec', avisoForn: '' });
+  assert.match(e.erroForm(), /avisar o fornecedor/);
+  await e.submit({ resultado: 'recusado', obs: 'Slump fora do especificado', divTipo: 'espec', avisoForn: dia(0) });
   assert.equal(e.linhas('compras')[0].status, 'pedido');
+  assert.equal(e.linhas('compras')[0].diverg.tipo, 'espec'); assert.equal(e.linhas('compras')[0].diverg.avisadoEm, dia(0)); assert.ok(!e.linhas('compras')[0].diverg.resolvidoEm);
   const oc = e.linhas('ocorrencias');
   assert.equal(oc.length, 1);
   assert.equal(oc[0].origem, 'recebimento');
