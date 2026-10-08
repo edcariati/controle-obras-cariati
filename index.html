@@ -5857,6 +5857,13 @@ function cfEtapaSel(o){
   var cs=o?byObra('compras',o.id):[], e=0; cs.forEach(function(c){ var x=compraEtapaFluxo(o,c); if(x&&(!e||x<e)) e=x; });
   return e||1;
 }
+/* botão da próxima ação da compra, conforme a etapa do fluxo (pagamento tem ações próprias) */
+function cfAcaoEtapa(n,c,rot){
+  var p=pagDe(c), b=function(act,t){ return '<button class="btn sm primary" data-act="'+act+'" data-id="'+c.id+'" data-write>'+esc(t)+' →</button>'; };
+  if(n===8) return b('pg-pedir','Pedir pagamento');
+  if(n===9) return p.confirmadoEm?b('pg-comprovante','Comprovante enviado ao fornecedor'):b('pg-confirmar','Confirmar pagamento');
+  return rot?b('compra-avancar',rot):'';
+}
 function cfDetalhe(o,n){
   var s=CF_ETAPAS[n-1], f=FLX_COMPRAS[n-1], cs=o?byObra('compras',o.id).filter(function(c){ return compraEtapaFluxo(o,c)===n; }):[];
   var list=(CF_SETORES[n]||[]).map(function(x){ return '<li><strong>'+esc(CF_SET_NOME[x[0]])+' · '+esc(CF_TIPO[x[1]])+':</strong> '+esc(x[2])+'</li>'; }).join('');
@@ -5866,7 +5873,7 @@ function cfDetalhe(o,n){
   var comp=!o?'<p class="muted small">Escolha uma obra acima para ver as compras desta etapa.</p>':(cs.length?'<ul class="cf-c">'+cs.map(function(c){
       var rot=rotuloAvancar(o,c), atras=pedidoAtrasado(c)||cfPagCobrar(c)||cfDivAberta(c);
       return '<li><div class="grow"><button type="button" class="linkbtn" data-act="compra-abrir" data-id="'+c.id+'"><strong>'+esc(c.item)+'</strong></button> <span class="muted small">'+esc(String(c.qtd).replace('.',','))+' '+esc(c.un||'')+'</span>'
-        +(atras?' <span class="chip crit">Pede atenção</span>':'')+'</div>'+(rot?'<button class="btn sm primary" data-act="compra-avancar" data-id="'+c.id+'" data-write>'+esc(rot)+' →</button>':'')+'</li>'; }).join('')+'</ul>'
+        +(atras?' <span class="chip crit">Pede atenção</span>':'')+'</div>'+cfAcaoEtapa(n,c,rot)+'</li>'; }).join('')+'</ul>'
       :'<p class="muted small">Nenhuma compra desta obra está nesta etapa agora.</p>');
   return '<div class="cf-det" aria-live="polite"><div class="row spread" style="gap:8px;flex-wrap:wrap"><h3>Etapa '+pad2(n)+' · '+esc(s.nome)+'</h3><span class="chip steel">'+esc(f.quem)+'</span></div>'
     +'<p>'+esc(s.faz)+'</p><div class="cf-io"><div><small>Entra</small>'+esc(s.entra)+'</div><div><small>Sai</small>'+esc(s.sai)+'</div></div>'

@@ -63,7 +63,8 @@ test('fluxo de compras · tocar na etapa abre o detalhe, mostra as compras e a a
   assert.equal(e.x.cfEtapaSel(e.x.G('obras', 'o1')), 2);
   await e.click('[data-act="cf-etapa"][data-n="9"]');
   assert.match(e.app(), /Etapa 09 · Confirmação do pagamento/); assert.match(e.app(), /Passo a passo/); assert.match(e.app(), /Cimento CP-II/); assert.match(e.app(), /Cliente demora a confirmar/);
-  assert.ok(e.doc.querySelector('.cf-det [data-act="compra-avancar"][data-id="c1"]'));
+  assert.ok(e.doc.querySelector('.cf-det [data-act="pg-confirmar"][data-id="c1"]')); assert.ok(!e.doc.querySelector('.cf-det [data-act="compra-avancar"][data-id="c1"]'));
+  await e.click('[data-act="cf-etapa"][data-n="2"]'); assert.ok(e.doc.querySelector('.cf-det [data-act="compra-avancar"][data-id="c2"]'));
   await e.click('[data-act="cf-etapa"][data-n="1"]'); assert.ok(e.doc.querySelector('.cf-det [data-act="quant-calc"]'));
   await e.click('[data-act="cf-setor"][data-s="OBR"]');
   const dim = Array.from(e.doc.querySelectorAll('.cf-b.dim')).length; assert.ok(dim >= 6 && dim <= 10);
