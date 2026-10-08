@@ -92,6 +92,7 @@ function cdForm(col,x){
     [{name:'nome',label:'Nome ou razão social',required:true,value:x&&x.nome},{name:'tipoPessoa',label:'Tipo',type:'select',options:Object.keys(CD_PESSOA).map(function(k){ return [k,CD_PESSOA[k]]; }),value:(x&&x.tipoPessoa)||'pf'}],
     [{name:'doc',label:'CPF ou CNPJ',value:x&&x.doc},{name:'telefone',label:'Telefone ou WhatsApp',value:x&&x.telefone}],
     [{name:'email',label:'E-mail',type:'email',value:x&&x.email},{name:'contatoPref',label:'Contato preferido',type:'select',options:selOpts(Object.keys(CAD_CONTATO).map(function(k){ return [k,CAD_CONTATO[k]]; }),'—'),value:(x&&x.contatoPref)||''}],
+    {name:'pagComprasPadrao',label:'Pagamento das compras (padrão para as obras deste cliente)',type:'select',options:Object.keys(PAG_QUEM).map(function(k){ return [k,PAG_QUEM[k]]; }),value:(x&&x.pagComprasPadrao)||'cliente',hint:'Cada obra pode mudar. Define quem paga os fornecedores: o cliente ou a Cariati.'},
     {name:'endereco',label:'Endereço',value:x&&x.endereco},[{name:'cidade',label:'Cidade',value:x&&x.cidade},uf(x&&x.uf)],
     {name:'origem',label:'Como conheceu a Cariati',value:x&&x.origem,ph:'Indicação, Instagram, parceiro…'},{name:'obs',label:'Observações',type:'textarea',rows:2,value:x&&x.obs}]
   :[

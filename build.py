@@ -9,7 +9,7 @@ import sys, pathlib, hashlib
 
 RAIZ = pathlib.Path(__file__).parent
 SRC = RAIZ / 'src'
-ORDEM = ['logo.js', 'core.js', 'p2.js', 'p3.js', 'p4.js', 'p5.js', 'p7.js', 'gest.js', 'comprasdados.js', 'comprasfluxo.js', 'cadastro.js', 'cadastros.js', 'apontamentos.js', 'dash.js', 'fluxo.js', 'visao.js', 'ui.js', 'painelobra.js', 'views.js', 'nuvem.js', 'offline.js', 'boot.js']
+ORDEM = ['logo.js', 'core.js', 'p2.js', 'p3.js', 'p4.js', 'p5.js', 'p7.js', 'gest.js', 'comprasdados.js', 'comprasfluxo.js', 'comprasglobal.js', 'cadastro.js', 'cadastros.js', 'apontamentos.js', 'dash.js', 'fluxo.js', 'visao.js', 'ui.js', 'painelobra.js', 'views.js', 'nuvem.js', 'offline.js', 'boot.js']
 
 def ler(nome):
     return (SRC / nome).read_text(encoding='utf-8')

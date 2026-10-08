@@ -71,3 +71,27 @@ test('fluxo de compras · tocar na etapa abre o detalhe, mostra as compras e a a
   assert.ok(e.doc.querySelector('table.cf-mx')); assert.match(e.doc.querySelector('table.cf-mx').textContent, /Obras/);
   await e.click('[data-act="cf-setor"][data-s=""]'); assert.equal(e.doc.querySelectorAll('.cf-b.dim').length, 0);
 });
+
+test('setor de compras · página no menu com todas as obras, filtros, atenção e histórico', async () => {
+  const seed = { obras: { o1: obraAdm({ nome: 'Casa Alfa', cliente: 'Maria' }), o2: obraAdm({ nome: 'Casa Beta', cliente: 'João', pagCompras: 'cariati' }) }, fornecedores: forn,
+    compras: { c1: compra({ pagto: { solicitadoEm: dia(-4) }, hist: [{ de: 'aprovacao', para: 'pedido', data: new Date().toISOString(), nota: 'Pedido emitido' }] }), c2: compra({ obraId: 'o2', item: 'Areia', status: 'necessidade' }), c3: compra({ item: 'Brita', status: 'conferido' }) } };
+  const e = await abrir({ seed, hash: '#/compras' });
+  assert.ok(e.doc.querySelector('.top .nav a[href="#/compras"]'));
+  assert.match(e.app(), /Compras em andamento/); assert.match(e.app(), /Cimento CP-II/); assert.match(e.app(), /Areia/); assert.doesNotMatch(e.app(), /Brita/);
+  assert.match(e.app(), /Cobrar cliente/); assert.match(e.app(), /Cariati paga/); assert.match(e.app(), /Histórico recente/); assert.match(e.app(), /Pedido emitido/);
+  assert.equal(e.x.cmpTodas().length, 2);
+  await e.click('[data-act="cmp-sit"][data-s="encerradas"]'); const tb = () => e.doc.querySelector('table.tbl').textContent;
+  assert.match(tb(), /Brita/); assert.doesNotMatch(tb(), /Cimento CP-II/);
+  await e.click('[data-act="cmp-sit"][data-s="atencao"]'); assert.match(tb(), /Cimento CP-II/); assert.doesNotMatch(tb(), /Areia/);
+});
+
+test('DRE · compras por etapa do fluxo, quem pagou e repasse só do que o cliente pagou; padrão do cliente', async () => {
+  const mes = new Date().toISOString().slice(0, 7);
+  const seed = { clientes: { cl1: { nome: 'Maria', ativo: true, pagComprasPadrao: 'cariati' } }, obras: { o1: obraAdm({ nome: 'Casa Alfa', clienteId: 'cl1', cliente: 'Maria' }), o2: obraAdm({ nome: 'Casa Beta', pagCompras: 'cliente' }) }, fornecedores: forn,
+    compras: { c1: compra({ status: 'pago', pagoEm: dia(0), pedido: { data: dia(-5), fornecedorId: 'f1', total: 1000, entregaPrevista: dia(-2) } }), c2: compra({ obraId: 'o2', status: 'pago', pagoEm: dia(0), pedido: { data: dia(-5), fornecedorId: 'f1', total: 500, entregaPrevista: dia(-2) } }), c3: compra({ item: 'Aço', pedido: { data: dia(-1), fornecedorId: 'f1', total: 700, entregaPrevista: dia(4) } }) } };
+  const e = await abrir({ seed, hash: '#/obra/o1/financeiro' });
+  assert.equal(e.x.pagQuemObra(e.x.G('obras', 'o1')), 'cariati'); assert.equal(e.x.pagQuemObra(e.x.G('obras', 'o2')), 'cliente');
+  const r1 = e.x.repasseObra('o1', mes, mes), r2 = e.x.repasseObra('o2', mes, mes);
+  assert.equal(r1.compras, 0); assert.equal(r1.comprasCariati, 1000); assert.equal(r2.compras, 500);
+  const html = e.x.cmpDreHtml(e.x.G('obras', 'o1')); assert.match(html, /Compras e entregas/); assert.match(html, /Pagas pela Cariati/); assert.match(html, /Encerradas/); assert.match(html, /Etapas da obra liberadas/);
+});

@@ -11,6 +11,7 @@ function parseRoute(){
   if(p[0]==='prestadores') return {view:'prestadores'};
   if(p[0]==='agenda') return {view:'agenda'};
   if(p[0]==='fornecedores') return {view:'fornecedores'};
+  if(p[0]==='compras') return {view:'compras'};
   if(p[0]==='dre') return {view:'dre'};
   if(p[0]==='fluxo') return {view:'fluxo'};
   if(p[0]==='visao') return {view:'visao'};
@@ -25,7 +26,7 @@ function topbar(r){
   var cur=function(v){ return r.view===v?' aria-current="page"':''; };
   var obraAtiva=(r.view==='obra'||r.view==='etapa'), cli=Store.papel==='cliente';
   var nav=cli?'<a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Minha obra</a>'
-    :'<span class="nav-sec">Gestão</span><a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a>'+(Store.papel==='campo'?'':'<a href="#/cadastros"'+cur('cadastros')+'>Cadastros</a>')+'<span class="nav-sec">Operação</span><a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><span class="nav-sec">Relatórios</span><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a><span class="nav-sec">Sistema</span>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>';
+    :'<span class="nav-sec">Gestão</span><a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a>'+(Store.papel==='campo'?'':'<a href="#/cadastros"'+cur('cadastros')+'>Cadastros</a>')+'<span class="nav-sec">Operação</span><a href="#/compras"'+cur('compras')+'>Compras</a><a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><span class="nav-sec">Relatórios</span><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a><span class="nav-sec">Sistema</span>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>';
   return '<header class="top"><div class="top-in"><a class="brand" href="#/painel" aria-label="Cariati Obras, início"><img class="brand-logo" src="'+LOGO+'" alt="Cariati Arquitetura &amp; Gestão" width="56" height="44"><span class="brand-t">Controle de obras</span></a>'
     +(cli?'':'<button type="button" class="btn primary side-new" data-act="obra-nova" data-write aria-label="Nova obra">+ <b>Nova obra</b></button>')
     +'<nav class="nav" aria-label="Principal">'+nav+'</nav>'+(cli?'':sideFav())
@@ -304,7 +305,7 @@ function render(){
     app.innerHTML=topbar(r)+banners()+(r.view==='nuvem'?vNuvem():(r.view==='avisos'?vAvisos():(r.view==='pendencias'?vPendencias():vHistorico())));
     if(key!==lastKey) window.scrollTo(0,0); lastKey=key; uiPos(); return;
   }
-  var body=r.view==='obra'?vObra(r):(r.view==='etapa'?vEtapa(r):(r.view==='prestadores'?vPrest():(r.view==='agenda'?vAgenda():(r.view==='fornecedores'?vForn():(r.view==='dre'?vDRE():(r.view==='fluxo'?vFluxo():(r.view==='visao'?vVisao():(r.view==='cadastros'?vCadastros():vPainel()))))))));
+  var body=r.view==='obra'?vObra(r):(r.view==='etapa'?vEtapa(r):(r.view==='prestadores'?vPrest():(r.view==='agenda'?vAgenda():(r.view==='fornecedores'?vForn():(r.view==='compras'?vCompras():(r.view==='dre'?vDRE():(r.view==='fluxo'?vFluxo():(r.view==='visao'?vVisao():(r.view==='cadastros'?vCadastros():vPainel())))))))));
   document.body.classList.toggle('ro', !Store.writable);
   app.innerHTML=topbar(r)+banners()+body;
   if(key===lastKey){ window.scrollTo(0,y); var g2=document.querySelector('.gantt-scroll'); if(g2) g2.scrollLeft=ui.ganttScroll; } else { window.scrollTo(0,0); ui.ganttScroll=0; }
@@ -328,7 +329,7 @@ function obraForm(o){
       [{name:'codigo',label:'Código',value:o&&o.codigo,ph:'CA000000'},{name:'cliente',label:'Cliente',value:o&&o.cliente}],
       {name:'endereco',label:'Endereço da obra',value:o&&o.endereco},
       [{name:'tipologia',label:'Tipologia',type:'select',options:TIPOLOGIAS.map(function(t){return [t,t];}),value:(o&&o.tipologia)||TIPOLOGIAS[0]},{name:'tipoObra',label:'Tipo da obra',type:'select',options:OBRA_TIPOS.map(function(t){return [t,t];}),value:(o&&o.tipoObra)||OBRA_TIPOS[0]}],
-      [{name:'modalidade',label:'Modalidade do contrato',type:'select',options:MODALIDADES.map(function(t){return [t,t];}),value:(o&&o.modalidade)||MODALIDADES[0]},{name:'pagCompras',label:'Pagamento das compras',type:'select',options:Object.keys(PAG_QUEM).map(function(k){return [k,PAG_QUEM[k]];}),value:(o&&o.pagCompras)||'cliente',hint:'Quem paga os fornecedores desta obra. Aparece na etapa 8 do fluxo de compras.'}],
+      [{name:'modalidade',label:'Modalidade do contrato',type:'select',options:MODALIDADES.map(function(t){return [t,t];}),value:(o&&o.modalidade)||MODALIDADES[0]},{name:'pagCompras',label:'Pagamento das compras',type:'select',options:Object.keys(PAG_QUEM).map(function(k){return [k,PAG_QUEM[k]];}),value:(o&&o.pagCompras)||pagQuemObra(o)||'cliente',hint:'Quem paga os fornecedores desta obra. Aparece na etapa 8 do fluxo de compras.'}],
       [{name:'area',label:'Área (m²)',type:'number',step:'0.01',min:0,value:o&&o.area},{name:'inicio',label:'Início da obra',type:'date',value:o&&o.inicio}],
       [{name:'metaPPC',label:'Meta de PPC (%)',type:'number',min:0,max:100,value:o&&o.metaPPC!=null?o.metaPPC:80,hint:'Valor provisório, a definir pela Cariati.'},{name:'diasEscalar',label:'Dias de atraso para escalar',type:'number',min:1,value:o&&o.diasEscalar!=null?o.diasEscalar:7,hint:'Apontamento vencido há mais dias vai à diretoria.'}],
       [{name:'alcada',label:'Alçada de compra e locação (R$)',type:'number',min:0,step:'0.01',value:o&&o.alcada,hint:'Acima disso, a compra exige aprovação do cliente. A definir pela Cariati.'},{name:'margemPreco',label:'Margem aceita sobre o orçado (%)',type:'number',min:0,step:'0.1',value:o&&o.margemPreco!=null?o.margemPreco:5,hint:'Valor provisório.'}],

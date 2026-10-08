@@ -24,7 +24,7 @@ var FLX_COMPRAS=[
   {n:9,nome:'Confirmação do pagamento',quem:'Compras',ret:'O comprovante só vai ao fornecedor depois da confirmação do pagamento.'},
   {n:10,nome:'Acompanhamento da entrega',quem:'Compras acompanha · Obras recebe',ret:'Atraso: avisar o fornecedor e registrar.'},
   {n:11,nome:'Conferência do recebimento',quem:'Obras confere · Compras confirma',ret:'A compra só se encerra com quantidade e especificações conferidas. Divergência: avisar o fornecedor e acompanhar até concluir.'}];
-function pagQuemObra(o){ return (o&&o.pagCompras)||'cliente'; }
+function pagQuemObra(o){ if(!o) return 'cliente'; if(o.pagCompras) return o.pagCompras; var cl=o.clienteId?G('clientes',o.clienteId):null; return (cl&&cl.pagComprasPadrao)||'cliente'; }
 function pagDe(c){ return c.pagto||{}; }
 /* em qual das 11 etapas a compra está (0 = encerrada) */
 function compraEtapaFluxo(o,c){

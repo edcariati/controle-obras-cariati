@@ -1073,6 +1073,8 @@ h1{font-size:clamp(26px,1.6vw + 18px,36px);font-weight:700;letter-spacing:-.02em
 @media (max-width:680px){.cf-io{grid-template-columns:1fr}}
 
 .cf-mx td,.cf-mx th{text-align:center;padding:8px 6px}.cf-mx td:first-child,.cf-mx th:first-child{text-align:left}.cf-mx td.sel{background:var(--steel-soft)}
+
+.nav a[href="#/compras"]{--ico:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='20' r='1.4'/%3E%3Ccircle cx='18' cy='20' r='1.4'/%3E%3Cpath d='M3 4h2.5l2.2 10.2a1 1 0 0 0 1 .8h8.6a1 1 0 0 0 1-.8L20 8H6.2'/%3E%3C/svg%3E")}
 </style>
 </head>
 <body>
@@ -4189,9 +4191,9 @@ function dreLinhas(r){
 }
 COBX.dreObra=dreObra; COBX.dreLinhas=dreLinhas;
 function repasseObra(oid,ini,fim){
-  var o=G('obras',oid), r={compras:0,medicoes:0,locacoes:0,total:0}; if(!o||!modAdm(o)) return r;
+  var o=G('obras',oid), r={compras:0,comprasCariati:0,medicoes:0,locacoes:0,total:0}; if(!o||!modAdm(o)) return r;
   var no=function(d){ return d&&d.slice(0,7)>=ini&&d.slice(0,7)<=fim; };
-  byObra('compras',oid).forEach(function(c){ if(c.status==='pago'&&c.pedido&&no(c.pagoEm)) r.compras=r2(r.compras+c.pedido.total); });
+  byObra('compras',oid).forEach(function(c){ if(c.status==='pago'&&c.pedido&&no(c.pagoEm)){ if(((c.pagto&&c.pagto.quem)||pagQuemObra(o))==='cariati') r.comprasCariati=r2(r.comprasCariati+c.pedido.total); else r.compras=r2(r.compras+c.pedido.total); } });
   byObra('medicoes',oid).forEach(function(m){ if(m.status==='paga'&&no(m.pagaEm)) r.medicoes=r2(r.medicoes+(m.valorLiquido!=null?m.valorLiquido:medBruto(m))); });
   byObra('contasPagar',oid).forEach(function(c){ if(c.origem==='locacao'&&c.status==='paga'&&no(c.pagoEm)) r.locacoes=r2(r.locacoes+c.valor); });
   r.total=r2(r.compras+r.medicoes+r.locacoes); return r;
@@ -4270,7 +4272,7 @@ function tDRE(o){
   var rp=adm?repasseObra(oid,per.ini,per.fim):null;
   var repHtml=adm?'<section class="card sec"><div class="card-h"><div><h2>Recursos de terceiros movimentados (repasse)</h2><p class="muted small">Dinheiro do cliente que passou pela Cariati no período. <strong>Não é receita nem custo da Cariati e está fora do resultado acima.</strong></p></div></div><div class="tbl-scroll"><table class="tbl"><tbody><tr><td>Compras pagas</td><td class="num">'+brl(rp.compras)+'</td></tr><tr><td>Medições pagas (líquido)</td><td class="num">'+brl(rp.medicoes)+'</td></tr><tr><td>Locações pagas</td><td class="num">'+brl(rp.locacoes)+'</td></tr><tr style="font-weight:600"><td>Total movimentado</td><td class="num">'+brl(rp.total)+'</td></tr></tbody></table></div></section>':'';
   return '<div class="sec-h"><div><h2>DRE da obra</h2><p class="muted small">'+esc(empresaNome(o.empresaId)||'Sem empresa')+' · '+perRotulo(per)+'</p></div>'+presets+'</div>'+avisosDre()
-    +'<section class="card">'+dreTabelaHtml(cols)+'</section>'+repHtml+sugHtml+lancHtml+contratoClienteHtml(o);
+    +'<section class="card">'+dreTabelaHtml(cols)+'</section>'+repHtml+cmpDreHtml(o,per)+sugHtml+lancHtml+contratoClienteHtml(o);
 }
 Object.assign(A5,{
   'dre-preset':function(d){ var h=hoje().slice(0,7), y=h.slice(0,4); ui.drePer=d.p==='mes'?{ini:h,fim:h}:(d.p==='trimestre'?{ini:mesAdd(h,-2),fim:h}:{ini:y+'-01',fim:y+'-12'}); render(); },
@@ -5719,7 +5721,7 @@ var FLX_COMPRAS=[
   {n:9,nome:'Confirmação do pagamento',quem:'Compras',ret:'O comprovante só vai ao fornecedor depois da confirmação do pagamento.'},
   {n:10,nome:'Acompanhamento da entrega',quem:'Compras acompanha · Obras recebe',ret:'Atraso: avisar o fornecedor e registrar.'},
   {n:11,nome:'Conferência do recebimento',quem:'Obras confere · Compras confirma',ret:'A compra só se encerra com quantidade e especificações conferidas. Divergência: avisar o fornecedor e acompanhar até concluir.'}];
-function pagQuemObra(o){ return (o&&o.pagCompras)||'cliente'; }
+function pagQuemObra(o){ if(!o) return 'cliente'; if(o.pagCompras) return o.pagCompras; var cl=o.clienteId?G('clientes',o.clienteId):null; return (cl&&cl.pagComprasPadrao)||'cliente'; }
 function pagDe(c){ return c.pagto||{}; }
 /* em qual das 11 etapas a compra está (0 = encerrada) */
 function compraEtapaFluxo(o,c){
@@ -5902,6 +5904,74 @@ function fluxoCompras(o){
 }
 Object.assign(AG,{ 'cf-etapa':function(d){ ui.cfEtapa=Number(d.n); render(); }, 'cf-setor':function(d){ ui.cfSetor=d.s||''; render(); } });
 COBX.cfEtapaSel=cfEtapaSel;
+/* ================= SETOR DE COMPRAS (todas as obras) E COMPRAS NO DRE =================
+   · página "Compras" no menu: situação de todas as compras, etapa do fluxo, atrasos e histórico recente;
+   · quadro "Compras e entregas" no DRE da obra, com a etapa do fluxo, quem pagou e as entregas ligadas às etapas da obra. */
+function cmpClienteDe(o){ return o.cliente||''; }
+function cmpPagQuem(o){ return pagQuemObra(o); }
+function cmpFiltros(){ return Object.assign({obra:'', etapa:'', sit:'abertas'}, ui.cmpF||{}); }
+function cmpTodas(){
+  var f=cmpFiltros(), out=[];
+  L('compras').forEach(function(c){
+    var o=G('obras',c.obraId); if(!o||o.situacao==='cancelada') return;
+    var e=compraEtapaFluxo(o,c), encerrada=!e;
+    if(f.obra&&c.obraId!==f.obra) return;
+    if(f.etapa&&String(e)!==f.etapa) return;
+    var atras=pedidoAtrasado(c)||compraAtrasadaPedido(c)||cfPagCobrar(c)||cfDivAberta(c);
+    if(f.sit==='abertas'&&encerrada) return; if(f.sit==='atencao'&&!(atras&&!encerrada)) return; if(f.sit==='encerradas'&&!encerrada) return;
+    out.push({c:c,o:o,e:e,atras:atras});
+  });
+  return out.sort(function(a,b){ return (b.atras?1:0)-(a.atras?1:0) || (limiteCompra(a.c)||'9')<(limiteCompra(b.c)||'9')?-1:1; });
+}
+function cmpHistorico(n){
+  var ev=[];
+  L('compras').forEach(function(c){ var o=G('obras',c.obraId); if(!o) return; (c.hist||[]).forEach(function(h){ ev.push({d:h.data||'', o:o, c:c, h:h}); }); });
+  return ev.sort(function(a,b){ return a.d<b.d?1:-1; }).slice(0,n||25);
+}
+function vCompras(){
+  if(ehCliente()) return notFound();
+  var ve=gVe(), f=cmpFiltros(), obras=L('obras').filter(function(o){ return o.situacao!=='cancelada'; }).sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
+  var todasAbertas=[]; L('compras').forEach(function(c){ var o=G('obras',c.obraId); if(o&&o.situacao!=='cancelada'&&compraEtapaFluxo(o,c)) todasAbertas.push({c:c,o:o}); });
+  var n=function(fn){ return todasAbertas.filter(fn).length; }, hj=hoje(), sem=addDays(hj,7);
+  var kp=function(t,v,s,k){ return '<div class="kpi'+(k?' '+k:'')+'"><div class="kpi-r">'+t+'</div><div class="kpi-v"><span class="num">'+v+'</span></div><div class="kpi-s">'+s+'</div></div>'; };
+  var nAtr=n(function(x){ return pedidoAtrasado(x.c)||compraAtrasadaPedido(x.c); }), nCob=n(function(x){ return cfPagCobrar(x.c); }), nDiv=n(function(x){ return cfDivAberta(x.c); }), nSem=n(function(x){ return x.c.status==='pedido'&&x.c.pedido&&x.c.pedido.entregaPrevista>=hj&&x.c.pedido.entregaPrevista<=sem; });
+  var nAg=n(function(x){ return x.c.status==='pedido'&&x.c.pagto&&x.c.pagto.solicitadoEm&&!x.c.pagto.confirmadoEm; });
+  var kpis='<div class="kpis">'+kp('Compras em andamento',todasAbertas.length,'nas obras ativas','')+kp('Atrasadas',nAtr,nAtr?'pedir ou entrega fora do prazo':'em dia',nAtr?'crit':'ok')+kp('Aguardando pagamento do cliente',nAg,nCob?plural(nCob,'para cobrar agora','para cobrar agora'):'dentro do prazo',nCob?'crit':(nAg?'warn':'ok'))+kp('Divergências abertas',nDiv,nDiv?'avisar e acompanhar':'nenhuma',nDiv?'warn':'ok')+kp('Entregas em 7 dias',nSem,'pedidos com entrega prevista','')+'</div>';
+  var lista=cmpTodas();
+  var selObra='<select data-chg="cmp-f" data-k="obra" aria-label="Obra"><option value="">Todas as obras</option>'+obras.map(function(o){ return '<option value="'+o.id+'"'+(f.obra===o.id?' selected':'')+'>'+esc(o.nome)+'</option>'; }).join('')+'</select>';
+  var selEt='<select data-chg="cmp-f" data-k="etapa" aria-label="Etapa do fluxo"><option value="">Todas as etapas</option>'+FLX_COMPRAS.map(function(s){ return '<option value="'+s.n+'"'+(f.etapa===String(s.n)?' selected':'')+'>'+pad2(s.n)+' · '+esc(s.nome)+'</option>'; }).join('')+'</select>';
+  var sit=[['abertas','Em andamento'],['atencao','Pedem atenção'],['encerradas','Encerradas'],['todas','Todas']].map(function(x){ return '<button type="button" class="btn sm'+(f.sit===x[0]?' primary':'')+'" data-act="cmp-sit" data-s="'+x[0]+'" aria-pressed="'+(f.sit===x[0])+'">'+x[1]+'</button>'; }).join('');
+  var tbl=lista.length?'<div class="card tbl-scroll"><table class="tbl"><thead><tr><th>Item</th><th>Obra · cliente</th><th>Fluxo</th><th>Situação</th><th>Fornecedor</th><th>Entrega</th>'+(ve?'<th>Valor</th>':'')+'<th></th></tr></thead><tbody>'+lista.map(function(x){
+      var c=x.c, o=x.o, rot=rotuloAvancar(o,c), forn=c.pedido?fornNome(c.pedido.fornecedorId):'', val=valorCompra(c);
+      return '<tr'+(x.atras?' style="background:var(--crit-soft)"':'')+'><td><button type="button" class="linkbtn" data-act="compra-abrir" data-id="'+c.id+'"><strong>'+esc(c.item)+'</strong></button><div class="tiny muted">'+esc(String(c.qtd).replace('.',','))+' '+esc(c.un||'')+(c.codigo?' · '+esc(c.codigo):'')+'</div></td>'
+        +'<td><a href="#/obra/'+o.id+'/compras">'+esc(o.nome)+'</a><div class="tiny muted">'+esc(cmpClienteDe(o))+' · '+esc(PAG_QUEM[cmpPagQuem(o)])+'</div></td>'
+        +'<td>'+(x.e?'<span class="chip steel" title="'+esc(FLX_COMPRAS[x.e-1].nome)+'">'+pad2(x.e)+'/11</span> <span class="small">'+esc(FLX_COMPRAS[x.e-1].nome)+'</span>':'<span class="chip ok">Encerrada</span>')+'</td>'
+        +'<td><span class="chip">'+esc(COMPRA_ST[c.status]||c.status)+'</span>'+(cfPagCobrar(c)?' <span class="chip crit">Cobrar cliente</span>':'')+(cfDivAberta(c)?' <span class="chip crit">Divergência</span>':'')+(cfAtrasoSemAviso(c)?' <span class="chip crit">Avisar fornecedor</span>':'')+(pedidoAtrasado(c)&&c.avisoAtraso?' <span class="chip warn">Atrasada, avisado</span>':'')+'</td>'
+        +'<td>'+(esc(forn)||'<span class="muted">—</span>')+'</td><td class="small">'+(c.pedido&&c.pedido.entregaPrevista?fmt(c.pedido.entregaPrevista):'—')+'</td>'+(ve?'<td class="num">'+(val!=null?brl(val):'—')+'</td>':'')
+        +'<td style="white-space:nowrap">'+(Store.writable?cfAcaoEtapa(x.e,c,rot):'')+'</td></tr>'; }).join('')+'</tbody></table></div>'
+    :'<div class="card empty"><h3>Nenhuma compra neste filtro</h3><p>Mude o filtro ou registre as necessidades dentro de cada obra.</p></div>';
+  var hist=cmpHistorico(20), histHtml='<section class="card sec"><div class="card-h"><div><h2>Histórico recente</h2><p class="muted small">Últimos movimentos das compras, de todas as obras.</p></div></div>'+(hist.length?'<ul class="alerts">'+hist.map(function(x){ return '<li><span class="dot"></span><div class="grow"><strong>'+esc(x.c.item)+'</strong> <span class="muted">· '+esc(x.o.nome)+'</span><div class="small muted">'+fmt((x.d||'').slice(0,10))+': '+esc(COMPRA_ST[x.h.de]||'—')+' → <strong>'+esc(COMPRA_ST[x.h.para]||x.h.para)+'</strong>'+(x.h.nota?' · '+esc(x.h.nota):'')+(x.h.por?' · '+esc(Names.get(x.h.por)):'')+'</div></div><button type="button" class="linkbtn small" data-act="compra-abrir" data-id="'+x.c.id+'">Abrir</button></li>'; }).join('')+'</ul>':'<div class="pad muted">Ainda não há movimentos.</div>')+'</section>';
+  return '<div class="wrap">'+crumbs([['Compras']])+'<div class="sec-h"><div><h1>Compras</h1><p class="muted" style="margin-top:4px">O setor de compras em um lugar só: tudo que está em andamento nas obras, em qual das 11 etapas do fluxo cada compra está e o que pede atenção.</p></div><a class="btn" href="#/fluxo">Ver o fluxo de compras</a></div>'
+    +kpis+'<div class="row" style="gap:8px;flex-wrap:wrap;margin:14px 0">'+selObra+selEt+'<span class="row" style="gap:6px;flex-wrap:wrap">'+sit+'</span></div>'+tbl+histHtml+'</div>';
+}
+COBX.vCompras=vCompras; COBX.cmpDreHtml=cmpDreHtml; COBX.pagQuemObra=pagQuemObra; COBX.cmpTodas=cmpTodas; COBX.cmpHistorico=cmpHistorico;
+Object.assign(AG,{ 'cmp-sit':function(d){ ui.cmpF=Object.assign(cmpFiltros(),{sit:d.s}); render(); } });
+document.addEventListener('change',function(e){ var el=e.target.closest&&e.target.closest('[data-chg="cmp-f"]'); if(!el) return; var f=cmpFiltros(); f[el.dataset.k]=el.value; ui.cmpF=f; render(); });
+
+/* ---------- quadro no DRE da obra ---------- */
+function cmpDreHtml(o,per){
+  if(!modAdm(o)) return '';
+  var cs=byObra('compras',o.id), cont={}, val={}, tot=0, pagas={cliente:0,cariati:0}, naoPagas=0;
+  cs.forEach(function(c){ var e=compraEtapaFluxo(o,c)||12, v=c.pedido?Number(c.pedido.total)||0:0; cont[e]=(cont[e]||0)+1; val[e]=(val[e]||0)+v; tot+=v;
+    if(c.status==='pago'){ var q=(c.pagto&&c.pagto.quem)||cmpPagQuem(o); pagas[q]=(pagas[q]||0)+v; } else if(c.pedido) naoPagas+=v; });
+  var lib=ETAPAS.filter(function(e){ return etapaDoc(o.id,e.n).status==='liberada'; }).length, serv=cadServicos(o), nServ=serv.length;
+  var linhas=FLX_COMPRAS.map(function(s){ return cont[s.n]?'<tr><td>'+pad2(s.n)+' · '+esc(s.nome)+'</td><td class="num">'+cont[s.n]+'</td><td class="num">'+brl(r2(val[s.n]||0))+'</td></tr>':''; }).join('')+(cont[12]?'<tr><td>Encerradas (conferidas)</td><td class="num">'+cont[12]+'</td><td class="num">'+brl(r2(val[12]||0))+'</td></tr>':'');
+  var entr=cs.filter(function(c){ return c.status==='conferido'||c.status==='pago'; }).length, pend=cs.filter(function(c){ return ['necessidade','cotacao','aprovacao','pedido','entregue'].indexOf(c.status)>=0; }).length;
+  return '<section class="card sec"><div class="card-h"><div><h2>Compras e entregas</h2><p class="muted small">Situação das compras na etapa do fluxo e quem pagou. Quem paga é definido na obra ('+esc(PAG_QUEM[cmpPagQuem(o)])+'). O valor pago pelo cliente entra no repasse acima; o pago pela Cariati não é repasse e fica a reembolsar.</p></div><a class="btn sm" href="#/obra/'+o.id+'/compras">Abrir compras</a></div><div class="pad">'
+    +(cs.length?'<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Etapa do fluxo de compras</th><th>Compras</th><th>Valor dos pedidos</th></tr></thead><tbody>'+linhas+'<tr style="font-weight:600"><td>Total</td><td class="num">'+cs.length+'</td><td class="num">'+brl(r2(tot))+'</td></tr></tbody></table></div>':'<p class="muted">Nenhuma compra registrada nesta obra.</p>')
+    +'<div class="grid cols2" style="margin-top:12px"><div><h4 class="small muted">Quem pagou</h4><ul class="lst"><li>Pagas pelo cliente: '+brl(r2(pagas.cliente||0))+'</li><li>Pagas pela Cariati (a reembolsar): '+brl(r2(pagas.cariati||0))+'</li><li>Pedidos ainda sem pagamento: '+brl(r2(naoPagas))+'</li></ul></div>'
+    +'<div><h4 class="small muted">Entregas e entregáveis</h4><ul class="lst"><li>Compras entregues e conferidas: '+entr+' de '+cs.length+' ('+pend+' pendentes)</li><li>Etapas da obra liberadas: '+lib+' de 22</li><li>Serviços contratados marcados: '+nServ+' de '+gestTodos().length+'</li></ul></div></div></div></section>';
+}
 /* ================= CADASTRO DA OBRA =================
    Painel único com os dados do cliente, da obra, da equipe, do contrato e os arquivos recebidos dos outros aplicativos.
    Dados pessoais e de contrato ficam na coleção própria "cadastros" (um registro por obra) e os arquivos em "arquivosObra":
@@ -6319,6 +6389,7 @@ function cdForm(col,x){
     [{name:'nome',label:'Nome ou razão social',required:true,value:x&&x.nome},{name:'tipoPessoa',label:'Tipo',type:'select',options:Object.keys(CD_PESSOA).map(function(k){ return [k,CD_PESSOA[k]]; }),value:(x&&x.tipoPessoa)||'pf'}],
     [{name:'doc',label:'CPF ou CNPJ',value:x&&x.doc},{name:'telefone',label:'Telefone ou WhatsApp',value:x&&x.telefone}],
     [{name:'email',label:'E-mail',type:'email',value:x&&x.email},{name:'contatoPref',label:'Contato preferido',type:'select',options:selOpts(Object.keys(CAD_CONTATO).map(function(k){ return [k,CAD_CONTATO[k]]; }),'—'),value:(x&&x.contatoPref)||''}],
+    {name:'pagComprasPadrao',label:'Pagamento das compras (padrão para as obras deste cliente)',type:'select',options:Object.keys(PAG_QUEM).map(function(k){ return [k,PAG_QUEM[k]]; }),value:(x&&x.pagComprasPadrao)||'cliente',hint:'Cada obra pode mudar. Define quem paga os fornecedores: o cliente ou a Cariati.'},
     {name:'endereco',label:'Endereço',value:x&&x.endereco},[{name:'cidade',label:'Cidade',value:x&&x.cidade},uf(x&&x.uf)],
     {name:'origem',label:'Como conheceu a Cariati',value:x&&x.origem,ph:'Indicação, Instagram, parceiro…'},{name:'obs',label:'Observações',type:'textarea',rows:2,value:x&&x.obs}]
   :[
@@ -7242,7 +7313,7 @@ var BUSCA={it:[], sel:0};
 function buscaDados(){
   var it=[], add=function(g,t,s,ico,go,ac){ it.push({g:g,t:t,s:s||'',i:ico,go:go,ac:ac||''}); };
   var staff=Store.papel!=='cliente';
-  [['Obras','#/painel'],['Visão geral','#/visao'],['Agenda','#/agenda'],['Prestadores','#/prestadores'],['Fornecedores','#/fornecedores'],['Fluxo geral','#/fluxo'],['DRE','#/dre'],['Cadastros','#/cadastros'],['Clientes','#/cadastros/clientes'],['Parceiros','#/cadastros/parceiros'],['Lista de serviços','#/cadastros/servicos'],['Usuários e acessos','#/cadastros/usuarios'],['Nuvem','#/nuvem']].forEach(function(p){ if(staff||p[1]==='#/painel') add('Páginas',p[0],'',UI_SEARCH_ICO.pag,p[1]); });
+  [['Obras','#/painel'],['Visão geral','#/visao'],['Compras','#/compras'],['Agenda','#/agenda'],['Prestadores','#/prestadores'],['Fornecedores','#/fornecedores'],['Fluxo geral','#/fluxo'],['DRE','#/dre'],['Cadastros','#/cadastros'],['Clientes','#/cadastros/clientes'],['Parceiros','#/cadastros/parceiros'],['Lista de serviços','#/cadastros/servicos'],['Usuários e acessos','#/cadastros/usuarios'],['Nuvem','#/nuvem']].forEach(function(p){ if(staff||p[1]==='#/painel') add('Páginas',p[0],'',UI_SEARCH_ICO.pag,p[1]); });
   var abas=[['resumo','Resumo'],['cadastro','Cadastro'],['etapas','Etapas e evolução'],['cronograma','Cronograma'],['diario','Diário'],['ocorrencias','Ocorrências'],['compras','Compras'],['pedidos','Pedidos de pagamento'],['financeiro','Financeiro'],['pagprazos','Pagamentos e prazos'],['metaevo','Meta × evolução'],['quinzenal','Relatório quinzenal'],['relatorio','Relatório mensal'],['medicao','Medição'],['orcamento','Orçamento'],['contratos','Contratos'],['estoque','Estoque'],['encerramento','Encerramento']];
   L('obras').forEach(function(o){
     add('Obras',o.nome,[o.codigo,o.cliente].filter(Boolean).join(' · '),UI_SEARCH_ICO.obra,'#/obra/'+o.id+'/resumo');
@@ -7492,6 +7563,7 @@ function parseRoute(){
   if(p[0]==='prestadores') return {view:'prestadores'};
   if(p[0]==='agenda') return {view:'agenda'};
   if(p[0]==='fornecedores') return {view:'fornecedores'};
+  if(p[0]==='compras') return {view:'compras'};
   if(p[0]==='dre') return {view:'dre'};
   if(p[0]==='fluxo') return {view:'fluxo'};
   if(p[0]==='visao') return {view:'visao'};
@@ -7506,7 +7578,7 @@ function topbar(r){
   var cur=function(v){ return r.view===v?' aria-current="page"':''; };
   var obraAtiva=(r.view==='obra'||r.view==='etapa'), cli=Store.papel==='cliente';
   var nav=cli?'<a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Minha obra</a>'
-    :'<span class="nav-sec">Gestão</span><a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a>'+(Store.papel==='campo'?'':'<a href="#/cadastros"'+cur('cadastros')+'>Cadastros</a>')+'<span class="nav-sec">Operação</span><a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><span class="nav-sec">Relatórios</span><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a><span class="nav-sec">Sistema</span>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>';
+    :'<span class="nav-sec">Gestão</span><a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a>'+(Store.papel==='campo'?'':'<a href="#/cadastros"'+cur('cadastros')+'>Cadastros</a>')+'<span class="nav-sec">Operação</span><a href="#/compras"'+cur('compras')+'>Compras</a><a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><span class="nav-sec">Relatórios</span><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a><span class="nav-sec">Sistema</span>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>';
   return '<header class="top"><div class="top-in"><a class="brand" href="#/painel" aria-label="Cariati Obras, início"><img class="brand-logo" src="'+LOGO+'" alt="Cariati Arquitetura &amp; Gestão" width="56" height="44"><span class="brand-t">Controle de obras</span></a>'
     +(cli?'':'<button type="button" class="btn primary side-new" data-act="obra-nova" data-write aria-label="Nova obra">+ <b>Nova obra</b></button>')
     +'<nav class="nav" aria-label="Principal">'+nav+'</nav>'+(cli?'':sideFav())
@@ -7785,7 +7857,7 @@ function render(){
     app.innerHTML=topbar(r)+banners()+(r.view==='nuvem'?vNuvem():(r.view==='avisos'?vAvisos():(r.view==='pendencias'?vPendencias():vHistorico())));
     if(key!==lastKey) window.scrollTo(0,0); lastKey=key; uiPos(); return;
   }
-  var body=r.view==='obra'?vObra(r):(r.view==='etapa'?vEtapa(r):(r.view==='prestadores'?vPrest():(r.view==='agenda'?vAgenda():(r.view==='fornecedores'?vForn():(r.view==='dre'?vDRE():(r.view==='fluxo'?vFluxo():(r.view==='visao'?vVisao():(r.view==='cadastros'?vCadastros():vPainel()))))))));
+  var body=r.view==='obra'?vObra(r):(r.view==='etapa'?vEtapa(r):(r.view==='prestadores'?vPrest():(r.view==='agenda'?vAgenda():(r.view==='fornecedores'?vForn():(r.view==='compras'?vCompras():(r.view==='dre'?vDRE():(r.view==='fluxo'?vFluxo():(r.view==='visao'?vVisao():(r.view==='cadastros'?vCadastros():vPainel())))))))));
   document.body.classList.toggle('ro', !Store.writable);
   app.innerHTML=topbar(r)+banners()+body;
   if(key===lastKey){ window.scrollTo(0,y); var g2=document.querySelector('.gantt-scroll'); if(g2) g2.scrollLeft=ui.ganttScroll; } else { window.scrollTo(0,0); ui.ganttScroll=0; }
@@ -7809,7 +7881,7 @@ function obraForm(o){
       [{name:'codigo',label:'Código',value:o&&o.codigo,ph:'CA000000'},{name:'cliente',label:'Cliente',value:o&&o.cliente}],
       {name:'endereco',label:'Endereço da obra',value:o&&o.endereco},
       [{name:'tipologia',label:'Tipologia',type:'select',options:TIPOLOGIAS.map(function(t){return [t,t];}),value:(o&&o.tipologia)||TIPOLOGIAS[0]},{name:'tipoObra',label:'Tipo da obra',type:'select',options:OBRA_TIPOS.map(function(t){return [t,t];}),value:(o&&o.tipoObra)||OBRA_TIPOS[0]}],
-      [{name:'modalidade',label:'Modalidade do contrato',type:'select',options:MODALIDADES.map(function(t){return [t,t];}),value:(o&&o.modalidade)||MODALIDADES[0]},{name:'pagCompras',label:'Pagamento das compras',type:'select',options:Object.keys(PAG_QUEM).map(function(k){return [k,PAG_QUEM[k]];}),value:(o&&o.pagCompras)||'cliente',hint:'Quem paga os fornecedores desta obra. Aparece na etapa 8 do fluxo de compras.'}],
+      [{name:'modalidade',label:'Modalidade do contrato',type:'select',options:MODALIDADES.map(function(t){return [t,t];}),value:(o&&o.modalidade)||MODALIDADES[0]},{name:'pagCompras',label:'Pagamento das compras',type:'select',options:Object.keys(PAG_QUEM).map(function(k){return [k,PAG_QUEM[k]];}),value:(o&&o.pagCompras)||pagQuemObra(o)||'cliente',hint:'Quem paga os fornecedores desta obra. Aparece na etapa 8 do fluxo de compras.'}],
       [{name:'area',label:'Área (m²)',type:'number',step:'0.01',min:0,value:o&&o.area},{name:'inicio',label:'Início da obra',type:'date',value:o&&o.inicio}],
       [{name:'metaPPC',label:'Meta de PPC (%)',type:'number',min:0,max:100,value:o&&o.metaPPC!=null?o.metaPPC:80,hint:'Valor provisório, a definir pela Cariati.'},{name:'diasEscalar',label:'Dias de atraso para escalar',type:'number',min:1,value:o&&o.diasEscalar!=null?o.diasEscalar:7,hint:'Apontamento vencido há mais dias vai à diretoria.'}],
       [{name:'alcada',label:'Alçada de compra e locação (R$)',type:'number',min:0,step:'0.01',value:o&&o.alcada,hint:'Acima disso, a compra exige aprovação do cliente. A definir pela Cariati.'},{name:'margemPreco',label:'Margem aceita sobre o orçado (%)',type:'number',min:0,step:'0.1',value:o&&o.margemPreco!=null?o.margemPreco:5,hint:'Valor provisório.'}],

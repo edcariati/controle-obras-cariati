@@ -189,9 +189,9 @@ function dreLinhas(r){
 }
 COBX.dreObra=dreObra; COBX.dreLinhas=dreLinhas;
 function repasseObra(oid,ini,fim){
-  var o=G('obras',oid), r={compras:0,medicoes:0,locacoes:0,total:0}; if(!o||!modAdm(o)) return r;
+  var o=G('obras',oid), r={compras:0,comprasCariati:0,medicoes:0,locacoes:0,total:0}; if(!o||!modAdm(o)) return r;
   var no=function(d){ return d&&d.slice(0,7)>=ini&&d.slice(0,7)<=fim; };
-  byObra('compras',oid).forEach(function(c){ if(c.status==='pago'&&c.pedido&&no(c.pagoEm)) r.compras=r2(r.compras+c.pedido.total); });
+  byObra('compras',oid).forEach(function(c){ if(c.status==='pago'&&c.pedido&&no(c.pagoEm)){ if(((c.pagto&&c.pagto.quem)||pagQuemObra(o))==='cariati') r.comprasCariati=r2(r.comprasCariati+c.pedido.total); else r.compras=r2(r.compras+c.pedido.total); } });
   byObra('medicoes',oid).forEach(function(m){ if(m.status==='paga'&&no(m.pagaEm)) r.medicoes=r2(r.medicoes+(m.valorLiquido!=null?m.valorLiquido:medBruto(m))); });
   byObra('contasPagar',oid).forEach(function(c){ if(c.origem==='locacao'&&c.status==='paga'&&no(c.pagoEm)) r.locacoes=r2(r.locacoes+c.valor); });
   r.total=r2(r.compras+r.medicoes+r.locacoes); return r;
@@ -270,7 +270,7 @@ function tDRE(o){
   var rp=adm?repasseObra(oid,per.ini,per.fim):null;
   var repHtml=adm?'<section class="card sec"><div class="card-h"><div><h2>Recursos de terceiros movimentados (repasse)</h2><p class="muted small">Dinheiro do cliente que passou pela Cariati no período. <strong>Não é receita nem custo da Cariati e está fora do resultado acima.</strong></p></div></div><div class="tbl-scroll"><table class="tbl"><tbody><tr><td>Compras pagas</td><td class="num">'+brl(rp.compras)+'</td></tr><tr><td>Medições pagas (líquido)</td><td class="num">'+brl(rp.medicoes)+'</td></tr><tr><td>Locações pagas</td><td class="num">'+brl(rp.locacoes)+'</td></tr><tr style="font-weight:600"><td>Total movimentado</td><td class="num">'+brl(rp.total)+'</td></tr></tbody></table></div></section>':'';
   return '<div class="sec-h"><div><h2>DRE da obra</h2><p class="muted small">'+esc(empresaNome(o.empresaId)||'Sem empresa')+' · '+perRotulo(per)+'</p></div>'+presets+'</div>'+avisosDre()
-    +'<section class="card">'+dreTabelaHtml(cols)+'</section>'+repHtml+sugHtml+lancHtml+contratoClienteHtml(o);
+    +'<section class="card">'+dreTabelaHtml(cols)+'</section>'+repHtml+cmpDreHtml(o,per)+sugHtml+lancHtml+contratoClienteHtml(o);
 }
 Object.assign(A5,{
   'dre-preset':function(d){ var h=hoje().slice(0,7), y=h.slice(0,4); ui.drePer=d.p==='mes'?{ini:h,fim:h}:(d.p==='trimestre'?{ini:mesAdd(h,-2),fim:h}:{ini:y+'-01',fim:y+'-12'}); render(); },
