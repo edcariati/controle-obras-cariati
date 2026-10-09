@@ -39,7 +39,7 @@ function compraEtapaFluxo(o,c){
 function cfPagCobrar(c){ var p=pagDe(c); return !!(p.solicitadoEm&&!p.confirmadoEm&&p.quem!=='cariati'&&diffDays(p.solicitadoEm,hoje())>PAGTO_PRAZO_DIAS); }
 function cfPagDias(c){ var p=pagDe(c); return p.solicitadoEm?diffDays(p.solicitadoEm,hoje()):0; }
 function cfDivAberta(c){ return !!(c.diverg&&!c.diverg.resolvidoEm); }
-function cfAtrasoSemAviso(c){ return pedidoAtrasado(c)&&!c.avisoAtraso; }
+function cfAtrasoSemAviso(c){ return pedidoAtrasado(c)&&!c.avisoAtraso&&!(c.diverg&&c.diverg.avisadoEm); }
 
 /* ---------- blocos no diálogo da compra ---------- */
 function cfBlocos(o,c){
@@ -86,8 +86,11 @@ function pgConfirmar(id){
     onSubmit:async function(v){ await setCompra(c,{pagto:Object.assign({},pagDe(c),{confirmadoEm:v.data, anexos:v.anexos||[]})},'Pagamento confirmado'); openCompra(id); return false; }});
 }
 async function pgComprovante(id){
-  var c=G('compras',id); var p=pagDe(c);
-  await setCompra(c,{pagto:Object.assign({},p,{comprovanteEm:hoje()})},'Comprovante enviado ao fornecedor'); toast('Comprovante registrado. Acompanhe a entrega.'); openCompra(id);
+  var c=G('compras',id); var p=pagDe(c), dpg=p.confirmadoEm||hoje();
+  /* pagamento confirmado e comprovante enviado = fornecedor pago: baixa a conta a pagar (a compra segue até a conferência) */
+  await setCompra(c,{pagto:Object.assign({},p,{comprovanteEm:hoje()}), pagoEm:dpg},'Comprovante enviado ao fornecedor');
+  await baixarConta('compra', id, dpg);
+  toast('Comprovante registrado e conta baixada. Acompanhe a entrega.'); openCompra(id);
 }
 function avAtraso(id){
   var c=G('compras',id);

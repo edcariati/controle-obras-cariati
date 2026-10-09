@@ -295,7 +295,8 @@ function conferenciaForm(id,vol){
       if(v.resultado==='recusado' && !v.avisoForn) return 'Informe quando o fornecedor foi avisado. É obrigatório avisar o fornecedor.';
       if(v.resultado==='conferido'){
         await Store.add('movEstoque',{obraId:c.obraId, item:c.item, un:c.un||'un', tipo:'entrada', qtd:c.entrega?c.entrega.qtd:c.qtd, data:hoje(), etapa:c.etapa||0, compraId:c.id, obs:'Entrada por conferência de recebimento'});
-        await setCompra(c,{status:'conferido', conf:{data:hoje(), resultado:'conferido', criterio:v.criterio||'', obs:v.obs||'', fotos:v.fotos||[], por:Store.uid||null}},'Recebimento conferido');
+        var jaPago=!!(c.pagoEm||(c.pagto&&c.pagto.comprovanteEm));
+        await setCompra(c,{status:jaPago?'pago':'conferido', pagoEm:c.pagoEm||(jaPago?hoje():''), conf:{data:hoje(), resultado:'conferido', criterio:v.criterio||'', obs:v.obs||'', fotos:v.fotos||[], por:Store.uid||null}},jaPago?'Recebimento conferido (compra já paga)':'Recebimento conferido');
         toast('Recebimento conferido e material lançado no estoque.');
       } else {
         await Store.add('ocorrencias',{obraId:c.obraId, etapa:c.etapa||0, tipo:'falha', gravidade:'importante', local:'', descricao:'Material recusado no recebimento: '+c.item+'. '+v.obs.trim(), prestadorId:'', prazo:addDays(hoje(),3), status:'aberta', criadoEm:new Date().toISOString(), por:Store.uid||null, interacoes:[], fotos:v.fotos||[], origem:'recebimento', reabertas:0});

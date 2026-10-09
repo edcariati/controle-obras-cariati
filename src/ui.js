@@ -55,9 +55,9 @@ function heroPainel(){
     orbes:[orbHtml(d.ppc,'PPC médio',d.ppc==null?'—':null),orbHtml(d.conf,'Conformidade',d.conf==null?'—':null,'cy'),orbHtml(Math.min(100,(d.spi||0)*100),'SPI',d.spi==null?'—':dashFmt1(d.spi))]});
 }
 function heroObra(o){
-  var oid=o.id, lib=ETAPAS.filter(function(e){ return etapaDoc(oid,e.n).status==='liberada'; }).length, cron=avancoCron(oid), ppc=ppcAtual(oid), conf=conformidade(oid);
+  var oid=o.id, lib=ETAPAS.filter(function(e){ return etapaDoc(oid,e.n).status==='liberada'; }).length, cron=pnFisico(oid), ppc=ppcAtual(oid), conf=conformidade(oid);
   var ab=byObra('ocorrencias',oid).filter(ocAberta);
-  return heroHtml({pct:cron?cron:lib/22*100,rotulo:cron?'Cronograma':'Etapas liberadas',sub:lib+' de 22 etapas liberadas',eyebrow:'Andamento da obra',titulo:o.nome,
+  return heroHtml({pct:cron?cron:lib/22*100,rotulo:cron?'Executado':'Etapas liberadas',sub:lib+' de 22 etapas liberadas',eyebrow:'Andamento da obra',titulo:o.nome,
     texto:ab.length?plural(ab.length,'ocorrência aberta.','ocorrências abertas.'):'Nenhuma ocorrência aberta.',
     orbes:[orbHtml(ppc?ppc.ppc*100:null,'PPC',ppc?null:'—'),orbHtml(conf==null?null:conf*100,'Conformidade',conf==null?'—':null,'cy'),orbHtml(lib/22*100,'Protocolo',lib+'/22')]});
 }

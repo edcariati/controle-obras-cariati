@@ -191,7 +191,7 @@ COBX.dreObra=dreObra; COBX.dreLinhas=dreLinhas;
 function repasseObra(oid,ini,fim){
   var o=G('obras',oid), r={compras:0,comprasCariati:0,medicoes:0,locacoes:0,total:0}; if(!o||!modAdm(o)) return r;
   var no=function(d){ return d&&d.slice(0,7)>=ini&&d.slice(0,7)<=fim; };
-  byObra('compras',oid).forEach(function(c){ if(c.status==='pago'&&c.pedido&&no(c.pagoEm)){ if(((c.pagto&&c.pagto.quem)||pagQuemObra(o))==='cariati') r.comprasCariati=r2(r.comprasCariati+c.pedido.total); else r.compras=r2(r.compras+c.pedido.total); } });
+  byObra('compras',oid).forEach(function(c){ if((c.status==='pago'||c.pagoEm)&&c.pedido&&no(c.pagoEm)){ if(((c.pagto&&c.pagto.quem)||pagQuemObra(o))==='cariati') r.comprasCariati=r2(r.comprasCariati+c.pedido.total); else r.compras=r2(r.compras+c.pedido.total); } });
   byObra('medicoes',oid).forEach(function(m){ if(m.status==='paga'&&no(m.pagaEm)) r.medicoes=r2(r.medicoes+(m.valorLiquido!=null?m.valorLiquido:medBruto(m))); });
   byObra('contasPagar',oid).forEach(function(c){ if(c.origem==='locacao'&&c.status==='paga'&&no(c.pagoEm)) r.locacoes=r2(r.locacoes+c.valor); });
   r.total=r2(r.compras+r.medicoes+r.locacoes); return r;

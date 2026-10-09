@@ -1075,6 +1075,13 @@ h1{font-size:clamp(26px,1.6vw + 18px,36px);font-weight:700;letter-spacing:-.02em
 .cf-mx td,.cf-mx th{text-align:center;padding:8px 6px}.cf-mx td:first-child,.cf-mx th:first-child{text-align:left}.cf-mx td.sel{background:var(--steel-soft)}
 
 .nav a[href="#/compras"]{--ico:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='20' r='1.4'/%3E%3Ccircle cx='18' cy='20' r='1.4'/%3E%3Cpath d='M3 4h2.5l2.2 10.2a1 1 0 0 0 1 .8h8.6a1 1 0 0 0 1-.8L20 8H6.2'/%3E%3C/svg%3E")}
+
+/* menu lateral: cabe em telas de 900px de altura */
+@media (min-width:1100px) and (max-height:960px){
+  .nav a{padding:8px 12px;font-size:14.5px}
+  .nav-sec{padding:10px 12px 2px}
+  .top-in{gap:10px}
+}
 </style>
 </head>
 <body>
@@ -2640,7 +2647,8 @@ function conferenciaForm(id,vol){
       if(v.resultado==='recusado' && !v.avisoForn) return 'Informe quando o fornecedor foi avisado. É obrigatório avisar o fornecedor.';
       if(v.resultado==='conferido'){
         await Store.add('movEstoque',{obraId:c.obraId, item:c.item, un:c.un||'un', tipo:'entrada', qtd:c.entrega?c.entrega.qtd:c.qtd, data:hoje(), etapa:c.etapa||0, compraId:c.id, obs:'Entrada por conferência de recebimento'});
-        await setCompra(c,{status:'conferido', conf:{data:hoje(), resultado:'conferido', criterio:v.criterio||'', obs:v.obs||'', fotos:v.fotos||[], por:Store.uid||null}},'Recebimento conferido');
+        var jaPago=!!(c.pagoEm||(c.pagto&&c.pagto.comprovanteEm));
+        await setCompra(c,{status:jaPago?'pago':'conferido', pagoEm:c.pagoEm||(jaPago?hoje():''), conf:{data:hoje(), resultado:'conferido', criterio:v.criterio||'', obs:v.obs||'', fotos:v.fotos||[], por:Store.uid||null}},jaPago?'Recebimento conferido (compra já paga)':'Recebimento conferido');
         toast('Recebimento conferido e material lançado no estoque.');
       } else {
         await Store.add('ocorrencias',{obraId:c.obraId, etapa:c.etapa||0, tipo:'falha', gravidade:'importante', local:'', descricao:'Material recusado no recebimento: '+c.item+'. '+v.obs.trim(), prestadorId:'', prazo:addDays(hoje(),3), status:'aberta', criadoEm:new Date().toISOString(), por:Store.uid||null, interacoes:[], fotos:v.fotos||[], origem:'recebimento', reabertas:0});
@@ -4193,7 +4201,7 @@ COBX.dreObra=dreObra; COBX.dreLinhas=dreLinhas;
 function repasseObra(oid,ini,fim){
   var o=G('obras',oid), r={compras:0,comprasCariati:0,medicoes:0,locacoes:0,total:0}; if(!o||!modAdm(o)) return r;
   var no=function(d){ return d&&d.slice(0,7)>=ini&&d.slice(0,7)<=fim; };
-  byObra('compras',oid).forEach(function(c){ if(c.status==='pago'&&c.pedido&&no(c.pagoEm)){ if(((c.pagto&&c.pagto.quem)||pagQuemObra(o))==='cariati') r.comprasCariati=r2(r.comprasCariati+c.pedido.total); else r.compras=r2(r.compras+c.pedido.total); } });
+  byObra('compras',oid).forEach(function(c){ if((c.status==='pago'||c.pagoEm)&&c.pedido&&no(c.pagoEm)){ if(((c.pagto&&c.pagto.quem)||pagQuemObra(o))==='cariati') r.comprasCariati=r2(r.comprasCariati+c.pedido.total); else r.compras=r2(r.compras+c.pedido.total); } });
   byObra('medicoes',oid).forEach(function(m){ if(m.status==='paga'&&no(m.pagaEm)) r.medicoes=r2(r.medicoes+(m.valorLiquido!=null?m.valorLiquido:medBruto(m))); });
   byObra('contasPagar',oid).forEach(function(c){ if(c.origem==='locacao'&&c.status==='paga'&&no(c.pagoEm)) r.locacoes=r2(r.locacoes+c.valor); });
   r.total=r2(r.compras+r.medicoes+r.locacoes); return r;
@@ -5736,7 +5744,7 @@ function compraEtapaFluxo(o,c){
 function cfPagCobrar(c){ var p=pagDe(c); return !!(p.solicitadoEm&&!p.confirmadoEm&&p.quem!=='cariati'&&diffDays(p.solicitadoEm,hoje())>PAGTO_PRAZO_DIAS); }
 function cfPagDias(c){ var p=pagDe(c); return p.solicitadoEm?diffDays(p.solicitadoEm,hoje()):0; }
 function cfDivAberta(c){ return !!(c.diverg&&!c.diverg.resolvidoEm); }
-function cfAtrasoSemAviso(c){ return pedidoAtrasado(c)&&!c.avisoAtraso; }
+function cfAtrasoSemAviso(c){ return pedidoAtrasado(c)&&!c.avisoAtraso&&!(c.diverg&&c.diverg.avisadoEm); }
 
 /* ---------- blocos no diálogo da compra ---------- */
 function cfBlocos(o,c){
@@ -5783,8 +5791,11 @@ function pgConfirmar(id){
     onSubmit:async function(v){ await setCompra(c,{pagto:Object.assign({},pagDe(c),{confirmadoEm:v.data, anexos:v.anexos||[]})},'Pagamento confirmado'); openCompra(id); return false; }});
 }
 async function pgComprovante(id){
-  var c=G('compras',id); var p=pagDe(c);
-  await setCompra(c,{pagto:Object.assign({},p,{comprovanteEm:hoje()})},'Comprovante enviado ao fornecedor'); toast('Comprovante registrado. Acompanhe a entrega.'); openCompra(id);
+  var c=G('compras',id); var p=pagDe(c), dpg=p.confirmadoEm||hoje();
+  /* pagamento confirmado e comprovante enviado = fornecedor pago: baixa a conta a pagar (a compra segue até a conferência) */
+  await setCompra(c,{pagto:Object.assign({},p,{comprovanteEm:hoje()}), pagoEm:dpg},'Comprovante enviado ao fornecedor');
+  await baixarConta('compra', id, dpg);
+  toast('Comprovante registrado e conta baixada. Acompanhe a entrega.'); openCompra(id);
 }
 function avAtraso(id){
   var c=G('compras',id);
@@ -6686,7 +6697,7 @@ function evolPainel(o){
     +kpi('Em execução e vistoria','<span class="num">'+(st.em_execucao+st.aguardando_vistoria)+'</span>',st.aguardando_vistoria?plural(st.aguardando_vistoria,'aguarda vistoria','aguardam vistoria'):'nenhuma aguardando',st.aguardando_vistoria?'warn':'')
     +kpi('Apontamentos',' <span class="num">'+apont+'</span>',pend?plural(pend,'pendência aberta','pendências abertas'):'sem pendências abertas',pend?'warn':'ok')
     +kpi('Conclusões registradas','<span class="num">'+concl+'/'+liberadas+'</span>',liberadas?(concl<liberadas?plural(liberadas-concl,'etapa liberada sem conclusão','etapas liberadas sem conclusão'):'todas as liberadas'):'nenhuma liberada ainda',liberadas&&concl<liberadas?'warn':(liberadas?'ok':''))+'</div>';
-  return heroHtml({pct:st.liberada/22*100,rotulo:'Etapas liberadas',sub:st.liberada+' de 22',eyebrow:'Evolução',titulo:o.nome,texto:pend?plural(pend,'pendência aberta nos apontamentos.','pendências abertas nos apontamentos.'):'Sem pendências abertas nos apontamentos.',orbes:[orbHtml((st.em_execucao+st.aguardando_vistoria)/22*100,'Em andamento',String(st.em_execucao+st.aguardando_vistoria)),orbHtml(liberadas?concl/liberadas*100:null,'Conclusões',liberadas?concl+'/'+liberadas:'—','cy')]})+'<section class="card pad" style="margin-bottom:14px"><div class="dash-h"><h2>Evolução da obra</h2><span class="muted small">Etapas do protocolo e atividades do cronograma</span></div>'+k+'<div class="evo-grid"><div>'+seg+g+'</div><div>'+legFase+'</div></div></section>';
+  return heroHtml({pct:(pnFisico(oid)!=null&&pnFisico(oid)>0)?pnFisico(oid):st.liberada/22*100,rotulo:(pnFisico(oid)!=null&&pnFisico(oid)>0)?'Executado':'Etapas liberadas',sub:st.liberada+' de 22 etapas liberadas',eyebrow:'Evolução',titulo:o.nome,texto:pend?plural(pend,'pendência aberta nos apontamentos.','pendências abertas nos apontamentos.'):'Sem pendências abertas nos apontamentos.',orbes:[orbHtml((st.em_execucao+st.aguardando_vistoria)/22*100,'Em andamento',String(st.em_execucao+st.aguardando_vistoria)),orbHtml(liberadas?concl/liberadas*100:null,'Conclusões',liberadas?concl+'/'+liberadas:'—','cy')]})+'<section class="card pad" style="margin-bottom:14px"><div class="dash-h"><h2>Evolução da obra</h2><span class="muted small">Etapas do protocolo e atividades do cronograma</span></div>'+k+'<div class="evo-grid"><div>'+seg+g+'</div><div>'+legFase+'</div></div></section>';
 }
 function kcardAtividade(o,a){
   var av=a.avanco||0, hj=hoje(), atras=av<100&&a.fim<hj, dias=atras?diffDays(a.fim,hj):0, ap=byObra('atividades',o.id);
@@ -7295,9 +7306,9 @@ function heroPainel(){
     orbes:[orbHtml(d.ppc,'PPC médio',d.ppc==null?'—':null),orbHtml(d.conf,'Conformidade',d.conf==null?'—':null,'cy'),orbHtml(Math.min(100,(d.spi||0)*100),'SPI',d.spi==null?'—':dashFmt1(d.spi))]});
 }
 function heroObra(o){
-  var oid=o.id, lib=ETAPAS.filter(function(e){ return etapaDoc(oid,e.n).status==='liberada'; }).length, cron=avancoCron(oid), ppc=ppcAtual(oid), conf=conformidade(oid);
+  var oid=o.id, lib=ETAPAS.filter(function(e){ return etapaDoc(oid,e.n).status==='liberada'; }).length, cron=pnFisico(oid), ppc=ppcAtual(oid), conf=conformidade(oid);
   var ab=byObra('ocorrencias',oid).filter(ocAberta);
-  return heroHtml({pct:cron?cron:lib/22*100,rotulo:cron?'Cronograma':'Etapas liberadas',sub:lib+' de 22 etapas liberadas',eyebrow:'Andamento da obra',titulo:o.nome,
+  return heroHtml({pct:cron?cron:lib/22*100,rotulo:cron?'Executado':'Etapas liberadas',sub:lib+' de 22 etapas liberadas',eyebrow:'Andamento da obra',titulo:o.nome,
     texto:ab.length?plural(ab.length,'ocorrência aberta.','ocorrências abertas.'):'Nenhuma ocorrência aberta.',
     orbes:[orbHtml(ppc?ppc.ppc*100:null,'PPC',ppc?null:'—'),orbHtml(conf==null?null:conf*100,'Conformidade',conf==null?'—':null,'cy'),orbHtml(lib/22*100,'Protocolo',lib+'/22')]});
 }
@@ -7442,10 +7453,17 @@ var CRONO_TIPO={'Obra nova':[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
   'Ampliação':[1,2,3,5,6,7,8,9,12,13,14,15,16,17,19,21],
   'Por etapas':[]};
 /* ---------- indicadores de prazo a partir das atividades ---------- */
+/* avanço físico e pretendido: valor agregado (orçamento) quando existe, como no físico-financeiro e na Visão geral; senão, o cronograma */
+function pnEvm(oid){ var o=G('obras',oid); if(!o) return null; var e=evm(o); return e&&e.bac>0?e:null; }
 function pnPlanejado(oid){
+  var e=pnEvm(oid); if(e&&e.pv!=null&&e.bac>0&&!(e.semCronograma&&e.semCronograma.length)) return e.pv/e.bac*100;
   var ats=byObra('atividades',oid), hj=hoje(), tot=0, acc=0;
   ats.forEach(function(a){ var d=Math.max(1,diffDays(a.inicio,a.fim)+1); tot+=d; acc+=d*Math.max(0,Math.min(1,(diffDays(a.inicio,hj)+1)/d)); });
   return tot?acc/tot*100:null;
+}
+function pnFisico(oid){
+  var e=pnEvm(oid); if(e&&e.fisPct!=null) return e.fisPct*100;
+  var c=avancoCron(oid); return c==null?null:c*100;
 }
 function pnProjecao(oid,fis,plan){
   var ats=byObra('atividades',oid); if(!ats.length) return null;
@@ -7457,18 +7475,20 @@ function pnProjecao(oid,fis,plan){
 }
 function pnCurva(oid){
   var ats=byObra('atividades',oid); if(!ats.length) return null;
+  var ev=pnEvm(oid);
+  if(ev&&!(ev.semCronograma&&ev.semCronograma.length)){ var cv=curvasS(G('obras',oid)); return {labels:cv.meses.map(function(m){ return mesCurto(m); }), plan:cv.fisPlan.map(function(v){ return Math.round(v*10)/10; }), real:cv.fisReal.map(function(v){ return v==null?null:Math.round(v*10)/10; }), hoje:-1}; }
   var ini=ats.reduce(function(m,a){ return a.inicio<m?a.inicio:m; },ats[0].inicio), fim=ats.reduce(function(m,a){ return a.fim>m?a.fim:m; },ats[0].fim), hj=hoje();
   var pts=[], d=segunda(ini), fimS=addDays(segunda(fim),7); if(hj>fimS) fimS=addDays(segunda(hj),7);
   var tot=ats.reduce(function(s,a){ return s+Math.max(1,diffDays(a.inicio,a.fim)+1); },0);
   var plan=function(dia){ var s=0; ats.forEach(function(a){ var du=Math.max(1,diffDays(a.inicio,a.fim)+1); s+=du*Math.max(0,Math.min(1,(diffDays(a.inicio,dia)+1)/du)); }); return s/tot*100; };
   for(var i=0;d<=fimS&&i<120;d=addDays(d,7),i++) pts.push(d);
-  var real=avancoCron(oid), iHj=-1; pts.forEach(function(x,k){ if(x<=hj) iHj=k; });
+  var real=pnFisico(oid), iHj=-1; pts.forEach(function(x,k){ if(x<=hj) iHj=k; });
   return {labels:pts.map(function(x){ return fmtC(x); }), plan:pts.map(function(x){ return Math.round(plan(x)*10)/10; }), real:pts.map(function(x,k){ return k===iHj&&real!=null?Math.round(real*10)/10:null; }), hoje:iHj};
 }
 /* ---------- painel ---------- */
 function tPainelObra(o){
   var oid=o.id, ve=gVe(), hj=hoje(), et=vgEtapas(oid), A=vgAtrasos([o]), T=vgTimeline([o]), ats=byObra('atividades',oid);
-  var lib=et.filter(function(e){ return e.lib; }).length, fis=avancoCron(oid); if(!(fis>0)&&lib&&ats.length) fis=lib/22*100; var plan=pnPlanejado(oid), proj=pnProjecao(oid,fis,plan);
+  var lib=et.filter(function(e){ return e.lib; }).length, fis=pnFisico(oid); if(!(fis>0)&&lib&&ats.length) fis=lib/22*100; var plan=pnPlanejado(oid), proj=pnProjecao(oid,fis,plan);
   var dev=(fis!=null&&plan!=null)?fis-plan:null, ppc=ppcAtual(oid), nAtr=A.ativ.length;
   var sit=!ats.length?{k:'',t:'sem cronograma'}:(proj&&proj.atraso>0?{k:'crit',t:'atrasada ≈ '+plural(proj.atraso,'dia','dias')}:(dev!=null&&dev<-5?{k:'warn',t:'abaixo do pretendido'}:{k:'ok',t:'no prazo'}));
   var hero=heroHtml({pct:fis!=null?fis:lib/22*100, rotulo:fis!=null?'Executado':'Etapas liberadas', sub:plan!=null?'pretendido hoje: '+Math.round(plan)+'%':lib+' de 22 etapas', eyebrow:'Evolução da obra', titulo:o.nome,
@@ -7515,7 +7535,7 @@ function tPainelObra(o){
   var botoes='<div class="row no-print" style="gap:8px;flex-wrap:wrap;margin-bottom:6px"><button class="btn" data-act="crono-gerar" data-oid="'+oid+'" data-write>Gerar cronograma</button><a class="btn" href="'+b+'cronograma">Cronograma</a><a class="btn" href="'+b+'etapas">Etapas e Kanban</a><a class="btn" href="'+b+'metaevo">Meta × evolução</a></div>';
   return '<div class="stack">'+hero+botoes+kpis+curva+tab+'<div class="grid cols2"><div class="stack">'+atr+kb+'</div><div class="stack">'+pf+'</div></div></div>';
 }
-COBX.tPainelObra=tPainelObra; COBX.pnPlanejado=pnPlanejado; COBX.pnProjecao=pnProjecao;
+COBX.tPainelObra=tPainelObra; COBX.pnPlanejado=pnPlanejado; COBX.pnFisico=pnFisico; COBX.pnProjecao=pnProjecao;
 
 /* ---------- gerador de cronograma por tipo de obra ---------- */
 function cronoDistribuir(inicio,fim,etapas){

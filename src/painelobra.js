@@ -10,10 +10,17 @@ var CRONO_TIPO={'Obra nova':[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
   'Ampliação':[1,2,3,5,6,7,8,9,12,13,14,15,16,17,19,21],
   'Por etapas':[]};
 /* ---------- indicadores de prazo a partir das atividades ---------- */
+/* avanço físico e pretendido: valor agregado (orçamento) quando existe, como no físico-financeiro e na Visão geral; senão, o cronograma */
+function pnEvm(oid){ var o=G('obras',oid); if(!o) return null; var e=evm(o); return e&&e.bac>0?e:null; }
 function pnPlanejado(oid){
+  var e=pnEvm(oid); if(e&&e.pv!=null&&e.bac>0&&!(e.semCronograma&&e.semCronograma.length)) return e.pv/e.bac*100;
   var ats=byObra('atividades',oid), hj=hoje(), tot=0, acc=0;
   ats.forEach(function(a){ var d=Math.max(1,diffDays(a.inicio,a.fim)+1); tot+=d; acc+=d*Math.max(0,Math.min(1,(diffDays(a.inicio,hj)+1)/d)); });
   return tot?acc/tot*100:null;
+}
+function pnFisico(oid){
+  var e=pnEvm(oid); if(e&&e.fisPct!=null) return e.fisPct*100;
+  var c=avancoCron(oid); return c==null?null:c*100;
 }
 function pnProjecao(oid,fis,plan){
   var ats=byObra('atividades',oid); if(!ats.length) return null;
@@ -25,18 +32,20 @@ function pnProjecao(oid,fis,plan){
 }
 function pnCurva(oid){
   var ats=byObra('atividades',oid); if(!ats.length) return null;
+  var ev=pnEvm(oid);
+  if(ev&&!(ev.semCronograma&&ev.semCronograma.length)){ var cv=curvasS(G('obras',oid)); return {labels:cv.meses.map(function(m){ return mesCurto(m); }), plan:cv.fisPlan.map(function(v){ return Math.round(v*10)/10; }), real:cv.fisReal.map(function(v){ return v==null?null:Math.round(v*10)/10; }), hoje:-1}; }
   var ini=ats.reduce(function(m,a){ return a.inicio<m?a.inicio:m; },ats[0].inicio), fim=ats.reduce(function(m,a){ return a.fim>m?a.fim:m; },ats[0].fim), hj=hoje();
   var pts=[], d=segunda(ini), fimS=addDays(segunda(fim),7); if(hj>fimS) fimS=addDays(segunda(hj),7);
   var tot=ats.reduce(function(s,a){ return s+Math.max(1,diffDays(a.inicio,a.fim)+1); },0);
   var plan=function(dia){ var s=0; ats.forEach(function(a){ var du=Math.max(1,diffDays(a.inicio,a.fim)+1); s+=du*Math.max(0,Math.min(1,(diffDays(a.inicio,dia)+1)/du)); }); return s/tot*100; };
   for(var i=0;d<=fimS&&i<120;d=addDays(d,7),i++) pts.push(d);
-  var real=avancoCron(oid), iHj=-1; pts.forEach(function(x,k){ if(x<=hj) iHj=k; });
+  var real=pnFisico(oid), iHj=-1; pts.forEach(function(x,k){ if(x<=hj) iHj=k; });
   return {labels:pts.map(function(x){ return fmtC(x); }), plan:pts.map(function(x){ return Math.round(plan(x)*10)/10; }), real:pts.map(function(x,k){ return k===iHj&&real!=null?Math.round(real*10)/10:null; }), hoje:iHj};
 }
 /* ---------- painel ---------- */
 function tPainelObra(o){
   var oid=o.id, ve=gVe(), hj=hoje(), et=vgEtapas(oid), A=vgAtrasos([o]), T=vgTimeline([o]), ats=byObra('atividades',oid);
-  var lib=et.filter(function(e){ return e.lib; }).length, fis=avancoCron(oid); if(!(fis>0)&&lib&&ats.length) fis=lib/22*100; var plan=pnPlanejado(oid), proj=pnProjecao(oid,fis,plan);
+  var lib=et.filter(function(e){ return e.lib; }).length, fis=pnFisico(oid); if(!(fis>0)&&lib&&ats.length) fis=lib/22*100; var plan=pnPlanejado(oid), proj=pnProjecao(oid,fis,plan);
   var dev=(fis!=null&&plan!=null)?fis-plan:null, ppc=ppcAtual(oid), nAtr=A.ativ.length;
   var sit=!ats.length?{k:'',t:'sem cronograma'}:(proj&&proj.atraso>0?{k:'crit',t:'atrasada ≈ '+plural(proj.atraso,'dia','dias')}:(dev!=null&&dev<-5?{k:'warn',t:'abaixo do pretendido'}:{k:'ok',t:'no prazo'}));
   var hero=heroHtml({pct:fis!=null?fis:lib/22*100, rotulo:fis!=null?'Executado':'Etapas liberadas', sub:plan!=null?'pretendido hoje: '+Math.round(plan)+'%':lib+' de 22 etapas', eyebrow:'Evolução da obra', titulo:o.nome,
@@ -83,7 +92,7 @@ function tPainelObra(o){
   var botoes='<div class="row no-print" style="gap:8px;flex-wrap:wrap;margin-bottom:6px"><button class="btn" data-act="crono-gerar" data-oid="'+oid+'" data-write>Gerar cronograma</button><a class="btn" href="'+b+'cronograma">Cronograma</a><a class="btn" href="'+b+'etapas">Etapas e Kanban</a><a class="btn" href="'+b+'metaevo">Meta × evolução</a></div>';
   return '<div class="stack">'+hero+botoes+kpis+curva+tab+'<div class="grid cols2"><div class="stack">'+atr+kb+'</div><div class="stack">'+pf+'</div></div></div>';
 }
-COBX.tPainelObra=tPainelObra; COBX.pnPlanejado=pnPlanejado; COBX.pnProjecao=pnProjecao;
+COBX.tPainelObra=tPainelObra; COBX.pnPlanejado=pnPlanejado; COBX.pnFisico=pnFisico; COBX.pnProjecao=pnProjecao;
 
 /* ---------- gerador de cronograma por tipo de obra ---------- */
 function cronoDistribuir(inicio,fim,etapas){
