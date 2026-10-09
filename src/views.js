@@ -92,14 +92,14 @@ function vPainel(){
 /* ---- obra ---- */
 function vObra(r){
   var o=G('obras',r.oid); if(!o) return notFound();
-  var mapa=abaMapa(), tab=mapa[r.tab]?r.tab:(mapa.painel?'painel':(mapa.resumo?'resumo':'chamados')), fn=mapa[tab];
+  var mapa=abaMapa(), tab=mapa[r.tab]?r.tab:(mapa.painel?'painel':(mapa.resumo?'resumo':(mapa.chamados?'chamados':Object.keys(mapa)[0]))), fn=mapa[tab];
   var meta=[o.cliente, o.endereco, o.tipologia, o.area?o.area+' m²':'', o.inicio?'início em '+fmt(o.inicio):''].filter(Boolean).map(esc).join(' · ');
   return '<div class="wrap">'+crumbs([['Obras','#/painel'],[o.nome]])+'<a class="back" href="#/painel">← Todas as obras</a>'
     +'<div class="ob-head"><div class="grow"><h1>'+esc(o.nome)+(ehCliente()?'':favBtn(o.id))+(o.codigo?' <span class="muted small num">'+esc(o.codigo)+'</span>':'')+'</h1><div class="meta">'+chipMod(o.modalidade)+(o.situacao==='cancelada'?'<span class="chip crit">Cancelada'+(o.canceladaEm?' em '+fmt(o.canceladaEm):'')+'</span>':'')+(o.situacao==='encerrada'?'<span class="chip ok">Encerrada em '+fmt(o.encerradaEm)+'</span>':'')+'<span>'+meta+'</span></div></div>'
     +'<div class="row"><button class="btn" data-act="obra-editar" data-oid="'+o.id+'" data-write>Editar obra</button></div></div>'
     +(ehCliente()?'':'<div class="no-print" style="margin-top:20px">'+regua(o.id,false)+legenda()+'</div>')
     +obraNav(o,tab)
-    +'<div style="margin-top:20px">'+fn(o)+'</div></div>';
+    +'<div style="margin-top:20px">'+(fn?fn(o):'<div class="card empty"><h3>Nada liberado ainda</h3><p>A equipe da Cariati ainda não liberou nenhuma área desta obra para você.</p></div>')+'</div></div>';
 }
 
 function indRow(nome, formula, valor, sub, k){
@@ -170,10 +170,10 @@ function tCron(o){
   var start=segunda(addDays(minD,-3)), end=addDays(maxD,10), weeks=Math.ceil((diffDays(start,end)+1)/7), days=weeks*7;
   var dw=window.innerWidth<640?12:16, wk='';
   for(var i=0;i<weeks;i++) wk+='<span>'+fmtC(addDays(start,i*7))+'</span>';
-  var rows='<div class="g-row head"><div class="g-label">Atividade</div><div class="g-weeks">'+wk+'</div></div>', lastE=-1;
+  var impE=impPorEtapa(o.id), rows='<div class="g-row head"><div class="g-label">Atividade</div><div class="g-weeks">'+wk+'</div></div>', lastE=-1;
   ats.forEach(function(a){
     var en=a.etapa||0;
-    if(en!==lastE){ lastE=en; rows+='<div class="g-row etapa"><div class="g-label">'+(en?en+'. '+esc(etapaInfo(en).nome):'Geral')+'</div><div class="g-track"></div></div>'; }
+    if(en!==lastE){ lastE=en; rows+='<div class="g-row etapa"><div class="g-label">'+(en?en+'. '+esc(etapaInfo(en).nome):'Geral')+(impE[en]?' <span class="chip warn" title="'+esc(impE[en].slice(0,3).map(function(x){ return impMotivoNome(x.i.motivo)+(x.i.desc?': '+x.i.desc:''); }).join(' | '))+'">⚠ '+plural(impE[en].length,'motivo de atraso','motivos de atraso')+'</span>':'')+'</div><div class="g-track"></div></div>'; }
     var off=diffDays(start,a.inicio), len=diffDays(a.inicio,a.fim)+1;
     var cls=(a.avanco||0)>=100?' done':(atAtrasada(a)?' late':'');
     var pred=a.pred?ats.filter(function(x){return x.id===a.pred;})[0]:null, warn=pred&&a.inicio<=pred.fim;
@@ -183,7 +183,7 @@ function tCron(o){
   });
   var todayOff=diffDays(start,hj);
   return head+'<div class="gantt-scroll" style="margin-top:14px"><div class="gantt" style="--days:'+days+';--dw:'+dw+'px">'+rows+'<div class="g-today" style="left:calc(var(--lw) + '+todayOff+'*var(--dw))" title="Hoje"></div></div></div>'
-    +'<div class="legenda"><span><i class="em_execucao"></i>Atividade (preenchimento = avanço)</span><span><i class="crit"></i>Atrasada</span><span><i class="liberada"></i>Concluída</span><span>Traço cinza: linha de base</span><span>Linha vermelha: hoje</span></div>';
+    +'<div class="legenda"><span><i class="em_execucao"></i>Atividade (preenchimento = avanço)</span><span><i class="crit"></i>Atrasada</span><span><i class="liberada"></i>Concluída</span><span>Traço cinza: linha de base</span><span>Linha vermelha: hoje</span></div>'+impedimentosCron(o);
 }
 
 /* ---- semana / PPC ---- */
@@ -215,7 +215,7 @@ function tDiario(o){
     return '<article class="entry"><div class="row spread"><div class="row"><strong class="num" style="font-size:17px">'+fmt(e.data)+'</strong><span class="muted small">'+dsem[parse(e.data).getDay()]+'</span>'+(e.clima?'<span class="chip">'+esc(e.clima)+'</span>':'')+(diaChuvaPerda(e)?'<span class="chip warn">Chuva impediu: dia perdido</span>':'')+(diaEquipePerda(e)?'<span class="chip crit">Equipe faltante</span>':'')+(tot?'<span class="chip steel">'+tot+' no efetivo</span>':'')+'</div><div class="row"><button class="btn sm ghost" data-act="dia-editar" data-id="'+e.id+'" data-write>Editar</button><button class="btn sm ghost" data-act="dia-excluir" data-id="'+e.id+'" data-write aria-label="Excluir registro">×</button></div></div>'
       +(ef?'<p class="small muted" style="margin-top:6px">Efetivo: '+ef+'</p>':'')
       +'<p style="margin-top:8px;white-space:pre-wrap">'+esc(e.atividades)+'</p>'+(e.obs?'<p class="small muted" style="margin-top:6px;white-space:pre-wrap">'+esc(e.obs)+'</p>':'')+thumbs(e.fotos)
-      +solDiarioHtml(o,e)
+      +impDiarioHtml(e)+solDiarioHtml(o,e)
       +'<p class="tiny muted" style="margin-top:8px">Registrado por '+esc(Names.get(e.por))+'</p></article>';
   }).join('')+'</div>';
 }
@@ -494,6 +494,9 @@ function diarioForm(oid, e){
     fields:[
       [{name:'data',label:'Data',type:'date',required:true,value:e?e.data:hoje()},{name:'clima',label:'Clima',type:'select',options:selOpts(CLIMA.map(function(c){return [c,c];}),'—'),value:e&&e.clima}],
       [{name:'chuvaImpediu',label:'A chuva impediu o serviço?',type:'select',options:[['','Automático (chuva forte = dia perdido)'],['nao','Não impediu'],['sim','Sim, dia perdido']],value:e&&e.chuvaImpediu||'',hint:'Dia perdido por chuva empurra o cronograma e o término previsto sozinho.'},{name:'equipe',label:'Equipe do dia',type:'select',options:[['','Equipe completa'],['faltou','Equipe faltante (dia perdido)']],value:e&&e.equipe||'',hint:'Equipe faltante conta como atraso e gera alerta, mas não estende o prazo.'}],
+      {name:'impedMotivo',label:'Empecilho do dia',type:'select',options:selOpts(IMP_MOTIVOS,'Nenhum'),value:e&&e.impedMotivo||'',hint:'Material que não veio, projeto pendente, decisão do cliente… aparece no cronograma, com o motivo.'},
+      [{name:'impedEtapa',label:'Etapa que ele atrasa',type:'select',options:etapaOptions('—'),value:e&&e.impedEtapa?String(e.impedEtapa):''},{name:'impedDias',label:'Atraso previsto (dias)',type:'number',step:1,value:e&&e.impedDias!=null?e.impedDias:''}],
+      {name:'impedDesc',label:'O que aconteceu',type:'textarea',rows:2,value:e&&e.impedDesc,ph:'Ex.: cimento do pedido 3 não foi entregue; laje atrasa.'},
       {name:'efetivo',label:'Efetivo do dia',type:'efetivo',options:prestOptions('Selecione o prestador…'),value:e&&e.efetivo,hint:'Prestador com seguro ou treinamento vencido não pode ser lançado.'},
       {name:'atividades',label:'O que foi executado',type:'textarea',required:true,rows:4,value:e&&e.atividades,ph:'Serviços do dia, por frente. No celular, use o ditado do teclado.'},
       {name:'obs',label:'Observações',type:'textarea',rows:2,value:e&&e.obs},
@@ -502,7 +505,10 @@ function diarioForm(oid, e){
     onSubmit:async function(v){
       if(!v.data) return 'Informe a data.';
       if(!(v.atividades||'').trim()) return 'Descreva o que foi executado.';
-      var data=Object.assign({}, e||{}, {obraId:oid, data:v.data, clima:v.clima||'', efetivo:v.efetivo||[], chuvaImpediu:v.chuvaImpediu||'', equipe:v.equipe||'', atividades:v.atividades.trim(), obs:v.obs||'', fotos:v.fotos||[], por:(e&&e.por)||Store.uid||null});
+      if(v.impedMotivo&&!v.impedEtapa) return 'Informe a etapa que o empecilho atrasa.';
+      if(v.impedMotivo&&!(v.impedDesc||'').trim()) return 'Descreva o que aconteceu (o motivo aparece no cronograma).';
+      if(Number(v.impedDias)<0) return 'O atraso previsto não pode ser negativo.';
+      var data=Object.assign({}, e||{}, {obraId:oid, data:v.data, clima:v.clima||'', efetivo:v.efetivo||[], chuvaImpediu:v.chuvaImpediu||'', equipe:v.equipe||'', impedMotivo:v.impedMotivo||'', impedEtapa:v.impedEtapa?Number(v.impedEtapa):0, impedDias:Number(v.impedDias)||0, impedDesc:(v.impedDesc||'').trim(), atividades:v.atividades.trim(), obs:v.obs||'', fotos:v.fotos||[], por:(e&&e.por)||Store.uid||null});
       await Store.set('diarios', e?e.id:nid(), data);
       await prazoSyncDiario(oid);
     }

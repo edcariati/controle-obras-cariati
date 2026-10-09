@@ -123,3 +123,45 @@ test('diário · dia de chuva e equipe faltante atualizam o prazo sozinhos (e de
   await e.click('[data-act="dia-excluir"][data-id="' + d.id + '"]'); await e.click('[data-x="1"]'); await e.tick(100);
   assert.equal(x.diffDays(fim0, ult()), 0); assert.equal(e.erros.length, 0);
 });
+
+test('cronograma · empecilho do diário (material, equipe) aparece com o motivo e o setor de obras ajusta', async () => {
+  const e = await abrir({ seed: semente(), hash: '#/obra/o1/diario' });
+  const x = e.x, L = (c) => e.linhas(c), ativ = () => Object.fromEntries(L('atividades').map((a) => [a.etapa, a]));
+  const antes = ativ();
+  await e.click('[data-act="dia-novo"]');
+  await e.submit({ data: dia(0), clima: 'Sol', atividades: 'Sem cimento', impedMotivo: 'material', impedEtapa: '', impedDesc: 'Cimento não veio', impedDias: '5' }); assert.match(e.erroForm(), /etapa que o empecilho atrasa/);
+  await e.submit({ data: dia(0), clima: 'Sol', atividades: 'Sem cimento', impedMotivo: 'material', impedEtapa: '6', impedDesc: '', impedDias: '5' }); assert.match(e.erroForm(), /Descreva o que aconteceu/);
+  await e.submit({ data: dia(0), clima: 'Sol', atividades: 'Sem cimento', impedMotivo: 'material', impedEtapa: '6', impedDesc: 'Cimento do pedido 3 não foi entregue', impedDias: '5' });
+  await e.click('[data-act="dia-novo"]'); await e.submit({ data: dia(-1), clima: 'Sol', equipe: 'faltou', atividades: 'Equipe não veio' });
+  await e.go('#/obra/o1/cronograma');
+  assert.match(e.app(), /Motivos de atraso por etapa/); assert.match(e.app(), /Material não chegou/); assert.match(e.app(), /Cimento do pedido 3 não foi entregue/); assert.match(e.app(), /Equipe faltante/);
+  assert.match(e.app(), /Aguardando o setor de obras/); assert.equal(e.doc.querySelectorAll('[data-act="imp-aplicar"]').length, 1);
+  assert.equal(x.diffDays(antes[6].fim, ativ()[6].fim), 0, 'nada muda sozinho: o setor de obras decide');
+  await e.click('[data-act="imp-aplicar"]'); await e.tick(100);
+  const dep = ativ(); assert.equal(x.diffDays(antes[6].fim, dep[6].fim), 5); assert.equal(x.diffDays(antes[7].inicio, dep[7].inicio), 5); assert.equal(x.diffDays(antes[5].fim, dep[5].fim), 0);
+  assert.equal(e.doc.querySelectorAll('[data-act="imp-aplicar"]').length, 0); assert.match(e.app(), /Ajustado em/);
+  const mes = dia(0).slice(0, 7); assert.ok(x.relDados(x.G('obras', 'o1'), mes).impedimentos.length >= 1);
+  assert.equal(e.erros.length, 0);
+});
+
+test('acesso do cliente · a equipe libera o que ele vê; ele só visualiza', async () => {
+  const e = await abrir({ seed: semente(), hash: '#/obra/o1/cadastro' });
+  const x = e.x;
+  assert.match(e.app(), /O que o cliente pode ver/); assert.match(e.app(), /não aprova nada/); assert.match(e.app(), /Financeiro/);
+  assert.equal(JSON.stringify(x.clienteAbas(x.G('obras', 'o1'))), JSON.stringify(['relatorio', 'quinzenal', 'garantias', 'chamados', 'visitas', 'satisfacao']));
+  await e.click('[data-act="cad-acesso"]'); await e.submit({ areas: ['painel', 'cronograma', 'relatorio'] });
+  assert.equal(JSON.stringify(e.linhas('obras')[0].clienteVe), JSON.stringify(['painel', 'cronograma', 'relatorio']));
+  assert.equal(JSON.stringify(x.clienteAbas(x.G('obras', 'o1'))), JSON.stringify(['painel', 'cronograma', 'relatorio']));
+  assert.equal(e.erros.length, 0);
+});
+
+test('acesso do cliente · no portal ele vê só as áreas liberadas', async () => {
+  const mk = (extra) => abrir({ supa: { perfil: { papel: 'cliente', nome: 'Maria' }, seed: { obras: { o1: { obra_id: 'o1', dados: Object.assign({ nome: 'Casa da Maria', modalidade: 'Administração de Obra' }, extra) } } } }, hash: '#/obra/o1/cronograma' });
+  let e = await mk({});
+  assert.doesNotMatch(e.app(), /Nenhuma atividade no cronograma/, 'por padrão o cliente não vê o cronograma');
+  e = await mk({ clienteVe: ['cronograma'] });
+  assert.match(e.app(), /Cronograma/); assert.match(e.app(), /Nenhuma atividade no cronograma/); assert.doesNotMatch(e.app(), /Motivos de atraso por etapa/);
+  await e.go('#/obra/o1/financeiro'); assert.doesNotMatch(e.app(), /Contas a pagar/);
+  e = await mk({ clienteVe: [] }); assert.match(e.app(), /Nada liberado ainda/);
+  assert.equal(e.erros.length, 0);
+});

@@ -108,7 +108,7 @@ function tCadastro(o){
   var imp='<label class="btn" data-write>Importar dados de um arquivo<input type="file" accept="application/json,.json" data-chg="cad-importar" data-oid="'+oid+'" hidden></label>';
   var arqCard='<section class="card sec"><div class="card-h"><div><h2>Arquivos recebidos</h2><p class="muted small">Projetos, orçamentos, contratos e documentos que chegam do app de projetos, do app financeiro ou do cliente. PDF e imagens, até 10 por envio.</p></div><div class="row" style="gap:6px;flex-wrap:wrap">'+imp+'<button class="btn" data-act="cad-modelo">Baixar modelo do arquivo</button><button class="btn primary" data-act="cad-arq-novo" data-oid="'+oid+'" data-write>+ Receber arquivos</button></div></div><div class="pad">'+linhas+'</div></section>';
   var hist=c.hist.length?'<p class="tiny muted" style="margin-top:10px">Última importação: '+c.hist.slice(-1).map(function(h){ return fmt((h.em||'').slice(0,10))+' — '+esc(CAD_ORIGEM[h.origem]||'Outro')+(h.arquivo?' ('+esc(h.arquivo)+')':''); })[0]+'.</p>':'';
-  return head+falta+'<div class="grid cols2" style="margin-top:14px"><div class="stack">'+cli+cadEscopoCard(o,ed)+eq+'</div><div class="stack">'+obr+ct+(ve?cadContaCard(o,ed):'')+'</div></div>'+arqCard+hist;
+  return head+falta+'<div class="grid cols2" style="margin-top:14px"><div class="stack">'+cli+cadEscopoCard(o,ed)+eq+'</div><div class="stack">'+obr+cadAcessoCard(o,ed)+ct+(ve?cadContaCard(o,ed):'')+'</div></div>'+arqCard+hist;
 }
 
 /* ---------- formulários ---------- */

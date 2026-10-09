@@ -4030,7 +4030,7 @@ function abaMapa(){
   var m=abaMapaTodas();
   if(Store.papel==='campo'){ ['pedidos','pagprazos','metaevo','cadastro','painel'].forEach(function(k){ delete m[k]; }); }
   if(Store.papel!=='cliente') return m;
-  var ok={}; ['garantias','chamados','visitas','satisfacao','relatorio','quinzenal'].forEach(function(k){ ok[k]=m[k]; }); return ok;
+  var r=parseRoute(), o=r&&r.oid?G('obras',r.oid):null, ok={}; clienteAbas(o).forEach(function(k){ if(m[k]) ok[k]=m[k]; }); return ok;
 }
 function abaMapaTodas(){
   return {painel:tPainelObra, garantias:tGarantias, chamados:tChamados, visitas:tVisitas, satisfacao:tSatisfacao, resumo:tResumo, etapas:tEtapas, cronograma:tCron, balanco:tBalanco, semana:tSemana, diario:tDiario, solicitacoes:tSolicitacoes, ocorrencias:tOcorr, entrega:tEntrega, projeto:tProjeto, compras:tCompras, estoque:tEstoque, locacoes:tLocacoes, contratos:tContratos, avaliacoes:tAvaliacoes, encerramento:tEncerramento, orcamento:tOrcamento, medicao:tMedicao, financeiro:tFinanceiro, fisfin:tFisFin, dre:tDRE, relatorio:tRelatorio, cadastro:tCadastro, quinzenal:tQuinzenal, pedidos:tPedidos, pagprazos:tPagPrazos, metaevo:tMetaEvo, agenda:tAgenda, reunioes:tReunioes, documentos:tDocumentos};
@@ -4394,7 +4394,7 @@ function relDados(o,mes){
   }
   d.aditivos={assinadosNoMes:adtAssinados(oid).filter(function(a){ return noMes(a.assinatura&&a.assinatura.data); }).map(function(a){ return {numero:a.numero, descricao:a.descricao, valor:adtValor(a)}; }), aguardando:adtDaObra(oid).filter(function(a){ return a.status==='aguardando_cliente'; }).map(function(a){ return {numero:a.numero, descricao:a.descricao, valor:adtValor(a), enviadoEm:(a.enviadoEm||'').slice(0,10)}; })};
   d.solicitacoes=solRelDados(o,mes);
-  d.diarioPrazo=diarioPrazo(oid,mes);
+  d.diarioPrazo=diarioPrazo(oid,mes); d.impedimentos=impRelDados(oid,mes);
   d.pendencias=byObra('materiais',oid).filter(function(m){ return m.resultado==='pendente'&&m.nivel3; }).map(function(m){ return {tipo:'Escolha de material', descricao:m.item, prazo:m.prazo}; })
     .concat(d.aditivos.aguardando.map(function(a){ return {tipo:'Aditivo nº '+a.numero, descricao:short(a.descricao,80), prazo:a.enviadoEm?addDays(a.enviadoEm,o.diasEscalar==null?7:o.diasEscalar):''}; }))
     .concat(adm?byObra('compras',oid).filter(function(c){ var nv=c.status==='aprovacao'&&!c.aprov?nivelDaCompra(o,c):null; return nv&&nv.nivel===3; }).map(function(c){ return {tipo:'Compra fora do orçado ou da alçada', descricao:c.item, prazo:limiteCompra(c)}; }):[]);
@@ -4411,7 +4411,7 @@ function relHtml(o,rel){
   h+='<section class="card sec pad rel-sec"><img class="rel-logo" src="'+LOGO+'" alt="Cariati Arquitetura &amp; Gestão"><p class="small muted">Relatório mensal ao cliente'+(rel.retificacaoDe?' — <strong>retificação</strong>':'')+'</p><h1 style="margin:4px 0">'+esc(d.capa.obra)+'</h1><p>'+esc(mesNome(d.mes))+'</p><p class="small muted">'+[d.capa.cliente, d.capa.endereco, d.capa.modalidade, d.capa.empresa].filter(Boolean).map(esc).join(' · ')+(d.capa.codigo?' · '+esc(d.capa.codigo):'')+'</p></section>';
   h+=sec(2,'Resumo da engenharia', rel.textoEngenharia?'<p style="white-space:pre-wrap">'+esc(rel.textoEngenharia)+'</p>':'<p class="muted small">Sem resumo escrito.</p>');
   var cv=d.avanco.curva, g=(cv.meses||[]).length>1?svgGrafico({titulo:'Curva S física', labels:cv.meses.map(mesCurto), linhas:[{nome:'Físico planejado',cor:'var(--steel)',tracejado:true,v:cv.plan},{nome:'Físico realizado',cor:'var(--ok)',v:cv.real}], fmt:function(v){ return Math.round(v)+'%'; }}):'';
-  h+=sec(3,'Avanço físico','<p>Avanço do cronograma: <strong>'+pc(d.avanco.cronograma)+'</strong> · valor executado sobre o orçamento: <strong>'+pc(d.avanco.fisico)+'</strong> · etapas liberadas: <strong>'+d.avanco.liberadasTotal+' de 22</strong></p>'+lista(d.avanco.liberadasNoMes,function(x){ return 'Etapa '+x.n+' — '+esc(x.nome)+' liberada no mês'; },'Nenhuma etapa liberada neste mês.')+(d.diarioPrazo&&(d.diarioPrazo.chuvaDias||d.diarioPrazo.equipeDias)?'<p class="small">Diário do mês: <strong>'+plural(d.diarioPrazo.chuvaDias,'dia de chuva','dias de chuva')+'</strong> ('+d.diarioPrazo.chuvaPerdidos+' impediram o serviço e foram somados ao prazo) · <strong>'+plural(d.diarioPrazo.equipeDias,'dia com equipe faltante','dias com equipe faltante')+'</strong>.</p>':'')+g);
+  h+=sec(3,'Avanço físico','<p>Avanço do cronograma: <strong>'+pc(d.avanco.cronograma)+'</strong> · valor executado sobre o orçamento: <strong>'+pc(d.avanco.fisico)+'</strong> · etapas liberadas: <strong>'+d.avanco.liberadasTotal+' de 22</strong></p>'+lista(d.avanco.liberadasNoMes,function(x){ return 'Etapa '+x.n+' — '+esc(x.nome)+' liberada no mês'; },'Nenhuma etapa liberada neste mês.')+(d.diarioPrazo&&(d.diarioPrazo.chuvaDias||d.diarioPrazo.equipeDias)?'<p class="small">Diário do mês: <strong>'+plural(d.diarioPrazo.chuvaDias,'dia de chuva','dias de chuva')+'</strong> ('+d.diarioPrazo.chuvaPerdidos+' impediram o serviço e foram somados ao prazo) · <strong>'+plural(d.diarioPrazo.equipeDias,'dia com equipe faltante','dias com equipe faltante')+'</strong>.</p>':'')+((d.impedimentos||[]).length?'<p class="small" style="margin-top:8px"><strong>Motivos de atraso do mês</strong></p>'+lista(d.impedimentos,function(x){ return fmt(x.data)+' — '+(x.etapa?'etapa '+x.etapa+': ':'')+esc(x.motivo)+(x.desc?' — '+esc(x.desc):'')+(x.dias?' (+'+x.dias+' dias)':''); },''):'')+g);
   h+=sec(4,'Qualidade','<p>Conformidade na primeira inspeção: <strong>'+pc(d.qualidade.conformidade)+'</strong> · ocorrências abertas: <strong>'+d.qualidade.abertasAgora+'</strong> ('+d.qualidade.criticasAgora+' crítica(s)) · abertas no mês: '+d.qualidade.abertasNoMes+' · fechadas no mês: '+d.qualidade.fechadasNoMes+' · reaberturas (retrabalho): '+d.qualidade.retrabalho+'</p>');
   var cz=Object.keys(d.planejamento.causas).map(function(k){ return (CAUSAS[k]||k)+': '+d.planejamento.causas[k]; }).join(' · ');
   h+=sec(5,'Planejamento','<p>PPC do mês: <strong>'+pc(d.planejamento.ppc)+'</strong> ('+d.planejamento.concluidos+' de '+d.planejamento.pacotes+' pacotes; meta '+d.planejamento.meta+'%)</p>'+(cz?'<p class="small muted">Causas de não cumprimento — '+esc(cz)+'</p>':''));
@@ -6101,7 +6101,7 @@ function tCadastro(o){
   var imp='<label class="btn" data-write>Importar dados de um arquivo<input type="file" accept="application/json,.json" data-chg="cad-importar" data-oid="'+oid+'" hidden></label>';
   var arqCard='<section class="card sec"><div class="card-h"><div><h2>Arquivos recebidos</h2><p class="muted small">Projetos, orçamentos, contratos e documentos que chegam do app de projetos, do app financeiro ou do cliente. PDF e imagens, até 10 por envio.</p></div><div class="row" style="gap:6px;flex-wrap:wrap">'+imp+'<button class="btn" data-act="cad-modelo">Baixar modelo do arquivo</button><button class="btn primary" data-act="cad-arq-novo" data-oid="'+oid+'" data-write>+ Receber arquivos</button></div></div><div class="pad">'+linhas+'</div></section>';
   var hist=c.hist.length?'<p class="tiny muted" style="margin-top:10px">Última importação: '+c.hist.slice(-1).map(function(h){ return fmt((h.em||'').slice(0,10))+' — '+esc(CAD_ORIGEM[h.origem]||'Outro')+(h.arquivo?' ('+esc(h.arquivo)+')':''); })[0]+'.</p>':'';
-  return head+falta+'<div class="grid cols2" style="margin-top:14px"><div class="stack">'+cli+cadEscopoCard(o,ed)+eq+'</div><div class="stack">'+obr+ct+(ve?cadContaCard(o,ed):'')+'</div></div>'+arqCard+hist;
+  return head+falta+'<div class="grid cols2" style="margin-top:14px"><div class="stack">'+cli+cadEscopoCard(o,ed)+eq+'</div><div class="stack">'+obr+cadAcessoCard(o,ed)+ct+(ve?cadContaCard(o,ed):'')+'</div></div>'+arqCard+hist;
 }
 
 /* ---------- formulários ---------- */
@@ -6887,7 +6887,7 @@ function solMover(id,to){
 }
 function solDecidir(id){
   var s=G('solicitacoes',id), o=G('obras',s.obraId);
-  openForm({title:'Decisão sobre '+solProtocolo(o,s), intro:esc(s.titulo)+(s.impactoPrazoDias?' · +'+s.impactoPrazoDias+' dias':'')+(gVe()&&solCusto(s)!=null?' · variação '+brl(solCusto(s)):'')+'. Registre quem decidiu e como ficou documentado.',
+  openForm({title:'Decisão sobre '+solProtocolo(o,s), intro:esc(s.titulo)+(s.impactoPrazoDias?' · +'+s.impactoPrazoDias+' dias':'')+(gVe()&&solCusto(s)!=null?' · variação '+brl(solCusto(s)):'')+'. O cliente não aprova pelo aplicativo: a equipe registra aqui a decisão tomada e como ficou documentada.',
     fields:[{name:'resultado',label:'Decisão',type:'radio',required:true,options:[['aprovada','Aprovada'],['recusada','Recusada']]},
       [{name:'data',label:'Data da decisão',type:'date',required:true,value:hoje()},{name:'quem',label:'Quem decidiu',required:true,ph:'Ex.: cliente, Sra. Almeida'}],
       {name:'ref',label:'Como foi decidido',type:'textarea',required:true,rows:2,ph:'Ex.: aprovado por WhatsApp em 12/03, print anexado.'},
@@ -7006,6 +7006,75 @@ Object.assign(AG,{
   'sol-protocolo':function(d){ var s=G('solicitacoes',d.id), o=G('obras',s.obraId); baixar('protocolo-'+solProtocolo(o,s)+'.html', solProtocoloHtml(o,s), 'text/html').then(function(ok){ if(ok) toast('Protocolo baixado: abra e imprima ou salve como PDF.'); }); }
 });
 COBX.solDaObra=solDaObra; COBX.diarioPrazo=diarioPrazo; COBX.prazoSyncDiario=prazoSyncDiario; COBX.diaChuvaPerda=diaChuvaPerda; COBX.diffDays=diffDays; COBX.addDays=addDays; COBX.origemAdt=origemAdt; COBX.prazoPendenteObra=prazoPendenteObra; COBX.solDivergencias=solDivergencias; COBX.solProtocoloHtml=solProtocoloHtml; COBX.solResumo=solResumo; COBX.solProtocolo=solProtocolo; COBX.tSolicitacoes=tSolicitacoes; COBX.alertasSol=alertasSol;
+/* ================= MOTIVOS DE ATRASO (diário → cronograma) E ACESSO DO CLIENTE =================
+   Impedimento: o que travou uma etapa (material que não chegou, equipe faltante, projeto pendente…) é registrado no
+   diário e aparece no cronograma, com o motivo, para o setor de obras decidir se ajusta as datas.
+   Acesso do cliente: o cliente só visualiza; a Cariati escolhe, por obra, quais áreas ele enxerga. Ele não aprova nada. */
+var IMP_MOTIVOS=[['material','Material não chegou'],['equipe','Equipe faltante'],['projeto','Projeto ou definição pendente'],['cliente','Decisão ou pagamento do cliente'],['clima','Chuva ou clima'],['licenca','Licença ou documento'],['outro','Outro']];
+function impMotivoNome(k){ return (IMP_MOTIVOS.filter(function(m){ return m[0]===k; })[0]||[k,k||'—'])[1]; }
+function diaImpedimento(e){
+  if(e.impedMotivo||(e.impedDesc||'').trim()) return {etapa:Number(e.impedEtapa)||0, motivo:e.impedMotivo||'outro', desc:(e.impedDesc||'').trim(), dias:Number(e.impedDias)||0, auto:false};
+  if(diaEquipePerda(e)) return {etapa:0, motivo:'equipe', desc:'Equipe faltante', dias:0, auto:true};
+  if(diaChuvaPerda(e)) return {etapa:0, motivo:'clima', desc:e.clima||'Chuva', dias:0, auto:true};
+  return null;
+}
+function impedimentosObra(oid){
+  return byObra('diarios',oid).map(function(e){ return {e:e, i:diaImpedimento(e)}; }).filter(function(x){ return x.i; }).sort(function(a,b){ return a.e.data<b.e.data?1:-1; });
+}
+function impNoCronograma(x){ return x.i.motivo==='clima'||!!x.e.impedAplicado||!(x.i.dias>0); }
+/* mesmo deslocamento do aditivo: a etapa afetada termina mais tarde e as seguintes começam depois */
+function cronoDeslocarEtapa(oid,et,dias){
+  var ats=byObra('atividades',oid); if(!ats.length) return Promise.resolve(false);
+  var alvo=et?ats.filter(function(a){ return a.etapa===et; }):[], depois=et?ats.filter(function(a){ return a.etapa>et; }):[];
+  if(!alvo.length&&!depois.length) alvo=[ats.slice().sort(function(a,b){ return a.fim<b.fim?1:-1; })[0]];
+  var t=[]; alvo.forEach(function(a){ t.push(Store.set('atividades',a.id,Object.assign({},a,{fim:addDays(a.fim,dias)}))); });
+  depois.forEach(function(a){ t.push(Store.set('atividades',a.id,Object.assign({},a,{inicio:addDays(a.inicio,dias),fim:addDays(a.fim,dias)}))); });
+  return Promise.all(t).then(function(){ return true; });
+}
+async function impAplicar(id){
+  var e=G('diarios',id), i=e&&diaImpedimento(e); if(!i||!(i.dias>0)||e.impedAplicado||i.motivo==='clima') return;
+  var ok=await cronoDeslocarEtapa(e.obraId,i.etapa,i.dias);
+  if(!ok){ blockDlg('Obra sem cronograma',['Monte o cronograma da obra para ajustar as datas.'],'Ajuste bloqueado'); return; }
+  await Store.set('diarios',id,Object.assign({},e,{impedAplicado:hoje()}));
+  toast('Cronograma ajustado: +'+i.dias+' dias'+(i.etapa?' a partir da etapa '+i.etapa:'')+'.');
+}
+function impPorEtapa(oid){ var m={}; impedimentosObra(oid).forEach(function(x){ var k=x.i.etapa||0; (m[k]=m[k]||[]).push(x); }); return m; }
+function impedimentosCron(o){
+  if(Store.papel==='cliente') return '';
+  var l=impedimentosObra(o.id).slice(0,40), ve=true;
+  var linhas=l.length?l.map(function(x){
+    var i=x.i, n=impNoCronograma(x), pode=!n&&i.dias>0;
+    return '<tr><td class="num">'+fmt(x.e.data)+'</td><td>'+(i.etapa?i.etapa+'. '+esc(etapaInfo(i.etapa).nome):'Geral')+'</td><td><span class="chip '+(i.motivo==='material'||i.motivo==='equipe'?'warn':'steel')+'">'+esc(impMotivoNome(i.motivo))+'</span></td><td>'+esc(i.desc||'—')+'</td><td class="num">'+(i.dias>0?'+'+i.dias+' d':'—')+'</td>'
+      +'<td>'+(i.motivo==='clima'?'<span class="chip ok">Ajustado automático (chuva)</span>':(x.e.impedAplicado?'<span class="chip ok">Ajustado em '+fmtC(x.e.impedAplicado)+'</span>':(i.dias>0?'<span class="chip warn">Aguardando o setor de obras</span>':'<span class="chip">Só registro</span>')))+'</td>'
+      +'<td>'+(pode?'<button class="btn sm primary" data-act="imp-aplicar" data-id="'+x.e.id+'" data-write>Ajustar +'+i.dias+' d</button>':'')+'</td></tr>';
+  }).join(''):'<tr><td colspan="7" class="muted" style="padding:16px">Nenhum empecilho registrado. No diário, informe o impedimento do dia (material, equipe, projeto…) e a etapa que ele atrasa.</td></tr>';
+  return '<section class="card sec"><div class="card-h"><div><h2>Motivos de atraso por etapa</h2><p class="muted small">Vêm do diário de obra. O setor de obras decide se ajusta as datas: “Ajustar” empurra a etapa e as seguintes.</p></div></div><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Data</th><th>Etapa</th><th>Motivo</th><th>O que aconteceu</th><th class="num">Atraso previsto</th><th>Situação</th><th></th></tr></thead><tbody>'+linhas+'</tbody></table></div></section>';
+}
+function impDiarioHtml(e){
+  var i=diaImpedimento(e); if(!i) return '';
+  return '<p class="small" style="margin-top:6px"><span class="chip '+(i.motivo==='material'||i.motivo==='equipe'?'warn':'steel')+'">Impedimento: '+esc(impMotivoNome(i.motivo))+'</span> '+(i.etapa?'etapa '+i.etapa+' · ':'')+esc(i.desc)+(i.dias>0?' · atraso previsto de '+i.dias+' dias':'')+'</p>';
+}
+function impRelDados(oid,mes){ return impedimentosObra(oid).filter(function(x){ return String(x.e.data).slice(0,7)===mes; }).map(function(x){ return {data:x.e.data, etapa:x.i.etapa, motivo:impMotivoNome(x.i.motivo), desc:x.i.desc, dias:x.i.dias}; }); }
+
+/* ---- acesso do cliente: só visualiza, e só o que a Cariati liberar ---- */
+var CLI_AREAS=[['painel','Painel de evolução'],['cronograma','Cronograma'],['etapas','Etapas e evolução'],['diario','Diário de obra'],['solicitacoes','Solicitações e mudanças'],['relatorio','Relatório mensal'],['quinzenal','Relatório quinzenal'],['pos','Garantias e pós-obra']];
+var CLI_PADRAO=['relatorio','quinzenal','pos'];
+function clienteLiberado(o){ return o&&Array.isArray(o.clienteVe)?o.clienteVe:CLI_PADRAO; }
+function clienteAbas(o){ var t=[]; clienteLiberado(o).forEach(function(k){ if(k==='pos') t.push('garantias','chamados','visitas','satisfacao'); else t.push(k); }); return t; }
+function cadAcessoCard(o,ed){
+  var l=clienteLiberado(o);
+  var itens=CLI_AREAS.map(function(a){ var on=l.indexOf(a[0])>=0; return '<li class="'+(on?'on':'off')+'"><span aria-hidden="true">'+(on?'✓':'—')+'</span> '+esc(a[1])+(on?'':' <span class="visually-hidden">(não liberado)</span>')+'</li>'; }).join('')
+    +'<li class="off"><span aria-hidden="true">—</span> Financeiro <span class="tiny muted">(em ajuste: o cliente ainda não vê valores)</span></li>';
+  return cadCard('O que o cliente pode ver','O cliente só visualiza, não aprova nada no aplicativo. '+(Array.isArray(o.clienteVe)?'':'<span class="chip steel">padrão, ainda não revisado</span>'),'<ul class="esc-l">'+itens+'</ul>',ed('cad-acesso'));
+}
+function cadFormAcesso(oid){
+  var o=G('obras',oid); if(!o) return;
+  openForm({title:'O que o cliente pode ver', wide:true, intro:'O cliente só visualiza. Marque as áreas desta obra que ficam liberadas para ele. O financeiro ainda não pode ser liberado.',
+    fields:[{name:'areas',label:'Áreas liberadas',type:'checks',options:CLI_AREAS,value:clienteLiberado(o)}],
+    onSubmit:async function(v){ var cur=G('obras',oid), rec=Object.assign({}, cur, {clienteVe:v.areas||[]}); delete rec.id; await Store.set('obras', oid, rec); toast('Acesso do cliente atualizado.'); }});
+}
+Object.assign(AG,{ 'imp-aplicar':function(d){ impAplicar(d.id); }, 'cad-acesso':function(d){ cadFormAcesso(d.oid); } });
+COBX.diaImpedimento=diaImpedimento; COBX.impedimentosObra=impedimentosObra; COBX.clienteAbas=clienteAbas; COBX.impAplicar=impAplicar; COBX.impRelDados=impRelDados; COBX.cadAcessoCard=cadAcessoCard;
 /* ================= PAINEL DE INDICADORES (tela principal) =================
    Perspectivas no estilo Balanced Scorecard: Prazo e execução · Qualidade · Financeiro · Prestadores · Cliente.
    Só usa o que o app já calcula (nenhuma regra nova). Valores em R$ só para quem pode vê-los. */
@@ -7943,14 +8012,14 @@ function vPainel(){
 /* ---- obra ---- */
 function vObra(r){
   var o=G('obras',r.oid); if(!o) return notFound();
-  var mapa=abaMapa(), tab=mapa[r.tab]?r.tab:(mapa.painel?'painel':(mapa.resumo?'resumo':'chamados')), fn=mapa[tab];
+  var mapa=abaMapa(), tab=mapa[r.tab]?r.tab:(mapa.painel?'painel':(mapa.resumo?'resumo':(mapa.chamados?'chamados':Object.keys(mapa)[0]))), fn=mapa[tab];
   var meta=[o.cliente, o.endereco, o.tipologia, o.area?o.area+' m²':'', o.inicio?'início em '+fmt(o.inicio):''].filter(Boolean).map(esc).join(' · ');
   return '<div class="wrap">'+crumbs([['Obras','#/painel'],[o.nome]])+'<a class="back" href="#/painel">← Todas as obras</a>'
     +'<div class="ob-head"><div class="grow"><h1>'+esc(o.nome)+(ehCliente()?'':favBtn(o.id))+(o.codigo?' <span class="muted small num">'+esc(o.codigo)+'</span>':'')+'</h1><div class="meta">'+chipMod(o.modalidade)+(o.situacao==='cancelada'?'<span class="chip crit">Cancelada'+(o.canceladaEm?' em '+fmt(o.canceladaEm):'')+'</span>':'')+(o.situacao==='encerrada'?'<span class="chip ok">Encerrada em '+fmt(o.encerradaEm)+'</span>':'')+'<span>'+meta+'</span></div></div>'
     +'<div class="row"><button class="btn" data-act="obra-editar" data-oid="'+o.id+'" data-write>Editar obra</button></div></div>'
     +(ehCliente()?'':'<div class="no-print" style="margin-top:20px">'+regua(o.id,false)+legenda()+'</div>')
     +obraNav(o,tab)
-    +'<div style="margin-top:20px">'+fn(o)+'</div></div>';
+    +'<div style="margin-top:20px">'+(fn?fn(o):'<div class="card empty"><h3>Nada liberado ainda</h3><p>A equipe da Cariati ainda não liberou nenhuma área desta obra para você.</p></div>')+'</div></div>';
 }
 
 function indRow(nome, formula, valor, sub, k){
@@ -8021,10 +8090,10 @@ function tCron(o){
   var start=segunda(addDays(minD,-3)), end=addDays(maxD,10), weeks=Math.ceil((diffDays(start,end)+1)/7), days=weeks*7;
   var dw=window.innerWidth<640?12:16, wk='';
   for(var i=0;i<weeks;i++) wk+='<span>'+fmtC(addDays(start,i*7))+'</span>';
-  var rows='<div class="g-row head"><div class="g-label">Atividade</div><div class="g-weeks">'+wk+'</div></div>', lastE=-1;
+  var impE=impPorEtapa(o.id), rows='<div class="g-row head"><div class="g-label">Atividade</div><div class="g-weeks">'+wk+'</div></div>', lastE=-1;
   ats.forEach(function(a){
     var en=a.etapa||0;
-    if(en!==lastE){ lastE=en; rows+='<div class="g-row etapa"><div class="g-label">'+(en?en+'. '+esc(etapaInfo(en).nome):'Geral')+'</div><div class="g-track"></div></div>'; }
+    if(en!==lastE){ lastE=en; rows+='<div class="g-row etapa"><div class="g-label">'+(en?en+'. '+esc(etapaInfo(en).nome):'Geral')+(impE[en]?' <span class="chip warn" title="'+esc(impE[en].slice(0,3).map(function(x){ return impMotivoNome(x.i.motivo)+(x.i.desc?': '+x.i.desc:''); }).join(' | '))+'">⚠ '+plural(impE[en].length,'motivo de atraso','motivos de atraso')+'</span>':'')+'</div><div class="g-track"></div></div>'; }
     var off=diffDays(start,a.inicio), len=diffDays(a.inicio,a.fim)+1;
     var cls=(a.avanco||0)>=100?' done':(atAtrasada(a)?' late':'');
     var pred=a.pred?ats.filter(function(x){return x.id===a.pred;})[0]:null, warn=pred&&a.inicio<=pred.fim;
@@ -8034,7 +8103,7 @@ function tCron(o){
   });
   var todayOff=diffDays(start,hj);
   return head+'<div class="gantt-scroll" style="margin-top:14px"><div class="gantt" style="--days:'+days+';--dw:'+dw+'px">'+rows+'<div class="g-today" style="left:calc(var(--lw) + '+todayOff+'*var(--dw))" title="Hoje"></div></div></div>'
-    +'<div class="legenda"><span><i class="em_execucao"></i>Atividade (preenchimento = avanço)</span><span><i class="crit"></i>Atrasada</span><span><i class="liberada"></i>Concluída</span><span>Traço cinza: linha de base</span><span>Linha vermelha: hoje</span></div>';
+    +'<div class="legenda"><span><i class="em_execucao"></i>Atividade (preenchimento = avanço)</span><span><i class="crit"></i>Atrasada</span><span><i class="liberada"></i>Concluída</span><span>Traço cinza: linha de base</span><span>Linha vermelha: hoje</span></div>'+impedimentosCron(o);
 }
 
 /* ---- semana / PPC ---- */
@@ -8066,7 +8135,7 @@ function tDiario(o){
     return '<article class="entry"><div class="row spread"><div class="row"><strong class="num" style="font-size:17px">'+fmt(e.data)+'</strong><span class="muted small">'+dsem[parse(e.data).getDay()]+'</span>'+(e.clima?'<span class="chip">'+esc(e.clima)+'</span>':'')+(diaChuvaPerda(e)?'<span class="chip warn">Chuva impediu: dia perdido</span>':'')+(diaEquipePerda(e)?'<span class="chip crit">Equipe faltante</span>':'')+(tot?'<span class="chip steel">'+tot+' no efetivo</span>':'')+'</div><div class="row"><button class="btn sm ghost" data-act="dia-editar" data-id="'+e.id+'" data-write>Editar</button><button class="btn sm ghost" data-act="dia-excluir" data-id="'+e.id+'" data-write aria-label="Excluir registro">×</button></div></div>'
       +(ef?'<p class="small muted" style="margin-top:6px">Efetivo: '+ef+'</p>':'')
       +'<p style="margin-top:8px;white-space:pre-wrap">'+esc(e.atividades)+'</p>'+(e.obs?'<p class="small muted" style="margin-top:6px;white-space:pre-wrap">'+esc(e.obs)+'</p>':'')+thumbs(e.fotos)
-      +solDiarioHtml(o,e)
+      +impDiarioHtml(e)+solDiarioHtml(o,e)
       +'<p class="tiny muted" style="margin-top:8px">Registrado por '+esc(Names.get(e.por))+'</p></article>';
   }).join('')+'</div>';
 }
@@ -8345,6 +8414,9 @@ function diarioForm(oid, e){
     fields:[
       [{name:'data',label:'Data',type:'date',required:true,value:e?e.data:hoje()},{name:'clima',label:'Clima',type:'select',options:selOpts(CLIMA.map(function(c){return [c,c];}),'—'),value:e&&e.clima}],
       [{name:'chuvaImpediu',label:'A chuva impediu o serviço?',type:'select',options:[['','Automático (chuva forte = dia perdido)'],['nao','Não impediu'],['sim','Sim, dia perdido']],value:e&&e.chuvaImpediu||'',hint:'Dia perdido por chuva empurra o cronograma e o término previsto sozinho.'},{name:'equipe',label:'Equipe do dia',type:'select',options:[['','Equipe completa'],['faltou','Equipe faltante (dia perdido)']],value:e&&e.equipe||'',hint:'Equipe faltante conta como atraso e gera alerta, mas não estende o prazo.'}],
+      {name:'impedMotivo',label:'Empecilho do dia',type:'select',options:selOpts(IMP_MOTIVOS,'Nenhum'),value:e&&e.impedMotivo||'',hint:'Material que não veio, projeto pendente, decisão do cliente… aparece no cronograma, com o motivo.'},
+      [{name:'impedEtapa',label:'Etapa que ele atrasa',type:'select',options:etapaOptions('—'),value:e&&e.impedEtapa?String(e.impedEtapa):''},{name:'impedDias',label:'Atraso previsto (dias)',type:'number',step:1,value:e&&e.impedDias!=null?e.impedDias:''}],
+      {name:'impedDesc',label:'O que aconteceu',type:'textarea',rows:2,value:e&&e.impedDesc,ph:'Ex.: cimento do pedido 3 não foi entregue; laje atrasa.'},
       {name:'efetivo',label:'Efetivo do dia',type:'efetivo',options:prestOptions('Selecione o prestador…'),value:e&&e.efetivo,hint:'Prestador com seguro ou treinamento vencido não pode ser lançado.'},
       {name:'atividades',label:'O que foi executado',type:'textarea',required:true,rows:4,value:e&&e.atividades,ph:'Serviços do dia, por frente. No celular, use o ditado do teclado.'},
       {name:'obs',label:'Observações',type:'textarea',rows:2,value:e&&e.obs},
@@ -8353,7 +8425,10 @@ function diarioForm(oid, e){
     onSubmit:async function(v){
       if(!v.data) return 'Informe a data.';
       if(!(v.atividades||'').trim()) return 'Descreva o que foi executado.';
-      var data=Object.assign({}, e||{}, {obraId:oid, data:v.data, clima:v.clima||'', efetivo:v.efetivo||[], chuvaImpediu:v.chuvaImpediu||'', equipe:v.equipe||'', atividades:v.atividades.trim(), obs:v.obs||'', fotos:v.fotos||[], por:(e&&e.por)||Store.uid||null});
+      if(v.impedMotivo&&!v.impedEtapa) return 'Informe a etapa que o empecilho atrasa.';
+      if(v.impedMotivo&&!(v.impedDesc||'').trim()) return 'Descreva o que aconteceu (o motivo aparece no cronograma).';
+      if(Number(v.impedDias)<0) return 'O atraso previsto não pode ser negativo.';
+      var data=Object.assign({}, e||{}, {obraId:oid, data:v.data, clima:v.clima||'', efetivo:v.efetivo||[], chuvaImpediu:v.chuvaImpediu||'', equipe:v.equipe||'', impedMotivo:v.impedMotivo||'', impedEtapa:v.impedEtapa?Number(v.impedEtapa):0, impedDias:Number(v.impedDias)||0, impedDesc:(v.impedDesc||'').trim(), atividades:v.atividades.trim(), obs:v.obs||'', fotos:v.fotos||[], por:(e&&e.por)||Store.uid||null});
       await Store.set('diarios', e?e.id:nid(), data);
       await prazoSyncDiario(oid);
     }

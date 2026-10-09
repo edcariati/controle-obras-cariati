@@ -149,7 +149,7 @@ function solMover(id,to){
 }
 function solDecidir(id){
   var s=G('solicitacoes',id), o=G('obras',s.obraId);
-  openForm({title:'Decisão sobre '+solProtocolo(o,s), intro:esc(s.titulo)+(s.impactoPrazoDias?' · +'+s.impactoPrazoDias+' dias':'')+(gVe()&&solCusto(s)!=null?' · variação '+brl(solCusto(s)):'')+'. Registre quem decidiu e como ficou documentado.',
+  openForm({title:'Decisão sobre '+solProtocolo(o,s), intro:esc(s.titulo)+(s.impactoPrazoDias?' · +'+s.impactoPrazoDias+' dias':'')+(gVe()&&solCusto(s)!=null?' · variação '+brl(solCusto(s)):'')+'. O cliente não aprova pelo aplicativo: a equipe registra aqui a decisão tomada e como ficou documentada.',
     fields:[{name:'resultado',label:'Decisão',type:'radio',required:true,options:[['aprovada','Aprovada'],['recusada','Recusada']]},
       [{name:'data',label:'Data da decisão',type:'date',required:true,value:hoje()},{name:'quem',label:'Quem decidiu',required:true,ph:'Ex.: cliente, Sra. Almeida'}],
       {name:'ref',label:'Como foi decidido',type:'textarea',required:true,rows:2,ph:'Ex.: aprovado por WhatsApp em 12/03, print anexado.'},
