@@ -168,6 +168,7 @@ COBX.adtParseItens=adtParseItens;
 function origemAdt(a){
   if(!a.origem) return '';
   if(a.origem.col==='ocorrencias'){ var o=G('ocorrencias',a.origem.id); return 'Ocorrência: '+(o?short(o.descricao,50):'removida'); }
+  if(a.origem.col==='solicitacoes'){ var sl=G('solicitacoes',a.origem.id); return 'Solicitação: '+(sl?sl.titulo:'removida'); }
   if(a.origem.col==='materiais'){ var m=G('materiais',a.origem.id); return 'Material: '+(m?m.item:'removido'); }
   return '';
 }
@@ -189,7 +190,7 @@ function aditivoForm(oid, a, pre){
   openForm({title:novo?'Novo aditivo':'Editar aditivo nº '+a.numero, wide:true,
     intro:(pre.origem?esc(origemAdt({origem:pre.origem}))+'. ':'')+'Um item por linha, separado por ponto e vírgula: <strong>descrição; unidade; quantidade; preço unitário; etapa; tipo; prestador</strong> (etapa, tipo e prestador são opcionais). Supressão: informe os itens que saem, com valores positivos.',
     fields:[{name:'descricao',label:'Descrição do aditivo',type:'textarea',required:true,rows:2,value:a?a.descricao:(pre.descricao||'')},
-      [{name:'tipo',label:'Tipo',type:'radio',required:true,options:Object.keys(ADT_TIPO).map(function(k){ return [k,ADT_TIPO[k]]; }),value:a?a.tipo:(pre.tipo||'acrescimo')},{name:'impactoPrazoDias',label:'Impacto no prazo (dias)',type:'number',step:1,value:a?a.impactoPrazoDias:0}],
+      [{name:'tipo',label:'Tipo',type:'radio',required:true,options:Object.keys(ADT_TIPO).map(function(k){ return [k,ADT_TIPO[k]]; }),value:a?a.tipo:(pre.tipo||'acrescimo')},{name:'impactoPrazoDias',label:'Impacto no prazo (dias)',type:'number',step:1,value:a?a.impactoPrazoDias:(pre.impactoPrazoDias||0)}],
       {name:'itens',label:'Itens (quantidade × preço unitário)',type:'textarea',rows:6,value:a?adtItensTexto(a):(pre.itens||''),ph:'Ex.: Contenção em gabião; m³; 42; 310,00; 4; empreitada; Terra Ltda',hint:'Aditivo de prazo puro pode ficar sem itens.'}],
     extra:novo?'':'<button type="button" class="btn danger" data-act="adt-excluir" data-id="'+a.id+'" style="margin-right:auto">Excluir rascunho</button>',
     onSubmit:async function(v){

@@ -531,7 +531,7 @@ function alertasP3(o){
   if(la.length) A.push({k:'warn', t:plural(la.length,'locação com devolução atrasada','locações com devolução atrasada')+': cada dia extra é cobrado.', to:base+'locacoes'});
   var dn=byObra('danos',oid).filter(function(d){return d.status==='aberta';});
   if(dn.length) A.push({k:'warn', t:plural(dn.length,'dano em aberto','danos em aberto')+', somando '+brl(dn.reduce(function(s,d){return s+(Number(d.custo)||0);},0))+'.', to:base+'contratos'});
-  return A.concat(alertasCF(o)).concat(alertasP4(o)).concat(alertasP5(o)).concat(alertasP7(o)).concat(alertasG(o));
+  return A.concat(alertasCF(o)).concat(alertasSol(o)).concat(alertasP4(o)).concat(alertasP5(o)).concat(alertasP7(o)).concat(alertasG(o));
 }
 function indRowsP3(o){
   var oid=o.id, out='', cs=byObra('compras',oid), ls=byObra('locacoes',oid), ts=byObra('termos',oid), ds=byObra('danos',oid);

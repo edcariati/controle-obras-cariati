@@ -59,3 +59,14 @@ select tt.exige(not tt.tenta($$select public.anexar_item('compras','kc1','hist',
 select tt.como(1);
 select tt.exige(not tt.tenta($$select * from public.ops_aplicadas$$) or true, 'n/a');
 reset role;
+
+-- 0012: solicitações — campo registra o pedido, mas nunca lê nem grava a variação em R$
+reset role;
+insert into public.solicitacoes(id,obra_id,dados) values ('ks1','k1','{"obraId":"k1","titulo":"Trocar piso","status":"registrada"}');
+insert into public."solicitacoesImpacto"(id,obra_id,dados) values ('ks1','k1','{"obraId":"k1","custo":4200}');
+set role authenticated; select tt.como(3);
+select tt.exige(tt.conta('solicitacoes')>=1, 'campo lê as solicitações da obra');
+select tt.exige(tt.tenta($$insert into public.solicitacoes(id,obra_id,dados) values ('ks2','k1','{"obraId":"k1","titulo":"Mais uma"}')$$), 'campo registra solicitação');
+select tt.exige(tt.conta('solicitacoesImpacto')=0, 'campo não lê a variação de custo');
+select tt.exige(not tt.tenta($$insert into public."solicitacoesImpacto"(id,obra_id,dados) values ('ks2','k1','{"custo":1}')$$), 'campo não grava a variação de custo');
+select tt.como(1); select tt.exige(tt.conta('solicitacoesImpacto')=1, 'dono lê a variação de custo');

@@ -3,7 +3,7 @@
 var NAV_GRUPOS=[
   ['geral','Resumo e cadastro',['painel','resumo','cadastro']],
   ['plan','Planejamento',['etapas','cronograma','balanco','semana']],
-  ['exec','Execução e qualidade',['diario','ocorrencias','entrega','projeto']],
+  ['exec','Execução e qualidade',['diario','solicitacoes','ocorrencias','entrega','projeto']],
   ['sup','Suprimentos',['compras','estoque','locacoes']],
   ['prest','Prestadores',['contratos','avaliacoes']],
   ['custo','Custo e financeiro',['orcamento','medicao','pedidos','financeiro','pagprazos','metaevo','fisfin','dre']],
@@ -11,7 +11,7 @@ var NAV_GRUPOS=[
   ['pos','Pós-obra',['garantias','chamados','visitas','satisfacao']],
   ['enc','Encerramento',['encerramento']]
 ];
-var NAV_ROTULO={painel:'Painel de evolução', resumo:'Resumo', etapas:'Etapas', cronograma:'Cronograma', balanco:'Balanço', semana:'Semana e PPC', diario:'Diário', ocorrencias:'Ocorrências', entrega:'Pré-entrega', projeto:'RFI e materiais', compras:'Compras', estoque:'Estoque', locacoes:'Locações', contratos:'Contratos e frentes', avaliacoes:'Avaliações', orcamento:'Orçamento', medicao:'Medição', financeiro:'Financeiro', fisfin:'Físico-financeiro', dre:'DRE', agenda:'Agenda', reunioes:'Reuniões', documentos:'Documentos', relatorio:'Relatório mensal', cadastro:'Cadastro', quinzenal:'Relatório quinzenal', pedidos:'Pedidos de pagamento', pagprazos:'Pagamentos e prazos', metaevo:'Meta × evolução', encerramento:'Encerramento e P0', garantias:'Garantias', chamados:'Chamados', visitas:'Visitas', satisfacao:'Satisfação'};
+var NAV_ROTULO={painel:'Painel de evolução', resumo:'Resumo', etapas:'Etapas', cronograma:'Cronograma', balanco:'Balanço', semana:'Semana e PPC', diario:'Diário', solicitacoes:'Solicitações', ocorrencias:'Ocorrências', entrega:'Pré-entrega', projeto:'RFI e materiais', compras:'Compras', estoque:'Estoque', locacoes:'Locações', contratos:'Contratos e frentes', avaliacoes:'Avaliações', orcamento:'Orçamento', medicao:'Medição', financeiro:'Financeiro', fisfin:'Físico-financeiro', dre:'DRE', agenda:'Agenda', reunioes:'Reuniões', documentos:'Documentos', relatorio:'Relatório mensal', cadastro:'Cadastro', quinzenal:'Relatório quinzenal', pedidos:'Pedidos de pagamento', pagprazos:'Pagamentos e prazos', metaevo:'Meta × evolução', encerramento:'Encerramento e P0', garantias:'Garantias', chamados:'Chamados', visitas:'Visitas', satisfacao:'Satisfação'};
 function abaMapa(){
   var m=abaMapaTodas();
   if(Store.papel==='campo'){ ['pedidos','pagprazos','metaevo','cadastro','painel'].forEach(function(k){ delete m[k]; }); }
@@ -19,7 +19,7 @@ function abaMapa(){
   var ok={}; ['garantias','chamados','visitas','satisfacao','relatorio','quinzenal'].forEach(function(k){ ok[k]=m[k]; }); return ok;
 }
 function abaMapaTodas(){
-  return {painel:tPainelObra, garantias:tGarantias, chamados:tChamados, visitas:tVisitas, satisfacao:tSatisfacao, resumo:tResumo, etapas:tEtapas, cronograma:tCron, balanco:tBalanco, semana:tSemana, diario:tDiario, ocorrencias:tOcorr, entrega:tEntrega, projeto:tProjeto, compras:tCompras, estoque:tEstoque, locacoes:tLocacoes, contratos:tContratos, avaliacoes:tAvaliacoes, encerramento:tEncerramento, orcamento:tOrcamento, medicao:tMedicao, financeiro:tFinanceiro, fisfin:tFisFin, dre:tDRE, relatorio:tRelatorio, cadastro:tCadastro, quinzenal:tQuinzenal, pedidos:tPedidos, pagprazos:tPagPrazos, metaevo:tMetaEvo, agenda:tAgenda, reunioes:tReunioes, documentos:tDocumentos};
+  return {painel:tPainelObra, garantias:tGarantias, chamados:tChamados, visitas:tVisitas, satisfacao:tSatisfacao, resumo:tResumo, etapas:tEtapas, cronograma:tCron, balanco:tBalanco, semana:tSemana, diario:tDiario, solicitacoes:tSolicitacoes, ocorrencias:tOcorr, entrega:tEntrega, projeto:tProjeto, compras:tCompras, estoque:tEstoque, locacoes:tLocacoes, contratos:tContratos, avaliacoes:tAvaliacoes, encerramento:tEncerramento, orcamento:tOrcamento, medicao:tMedicao, financeiro:tFinanceiro, fisfin:tFisFin, dre:tDRE, relatorio:tRelatorio, cadastro:tCadastro, quinzenal:tQuinzenal, pedidos:tPedidos, pagprazos:tPagPrazos, metaevo:tMetaEvo, agenda:tAgenda, reunioes:tReunioes, documentos:tDocumentos};
 }
 function obraNav(o,tab){
   var mapa=abaMapa(), base='#/obra/'+o.id+'/', grupo=NAV_GRUPOS.filter(function(g){ return g[2].indexOf(tab)>=0; })[0]||NAV_GRUPOS[0];
@@ -379,6 +379,7 @@ function relDados(o,mes){
     d.financeiro={medicoesAprovadas:meds.filter(function(m){ return m.status==='aprovada'||m.status==='paga'; }).map(function(m){ return {numero:m.numero, prestador:prestNome(m.prestadorId), liquido:m.valorLiquido!=null?m.valorLiquido:medCalc(m,o).liquido}; }), proximosMeses:[1,2,3].map(function(k){ var m=mesAdd(mes,k), x=desembolsoCliente(oid).filter(function(y){ return y.mes===m; })[0]; return {mes:m, valor:x?r2(x.aprovadas+x.aAprovar):0}; }), spi:ev.spi, bac:ev.bac};
   }
   d.aditivos={assinadosNoMes:adtAssinados(oid).filter(function(a){ return noMes(a.assinatura&&a.assinatura.data); }).map(function(a){ return {numero:a.numero, descricao:a.descricao, valor:adtValor(a)}; }), aguardando:adtDaObra(oid).filter(function(a){ return a.status==='aguardando_cliente'; }).map(function(a){ return {numero:a.numero, descricao:a.descricao, valor:adtValor(a), enviadoEm:(a.enviadoEm||'').slice(0,10)}; })};
+  d.solicitacoes=solRelDados(o,mes);
   d.pendencias=byObra('materiais',oid).filter(function(m){ return m.resultado==='pendente'&&m.nivel3; }).map(function(m){ return {tipo:'Escolha de material', descricao:m.item, prazo:m.prazo}; })
     .concat(d.aditivos.aguardando.map(function(a){ return {tipo:'Aditivo nº '+a.numero, descricao:short(a.descricao,80), prazo:a.enviadoEm?addDays(a.enviadoEm,o.diasEscalar==null?7:o.diasEscalar):''}; }))
     .concat(adm?byObra('compras',oid).filter(function(c){ var nv=c.status==='aprovacao'&&!c.aprov?nivelDaCompra(o,c):null; return nv&&nv.nivel===3; }).map(function(c){ return {tipo:'Compra fora do orçado ou da alçada', descricao:c.item, prazo:limiteCompra(c)}; }):[]);
@@ -412,10 +413,12 @@ function relHtml(o,rel){
     h+=sec(6,'Medições e desembolso previsto',lista(f2.medicoesAprovadas,function(m){ return 'Medição nº '+m.numero+' — '+esc(m.prestador||'')+': '+brl(m.liquido)+' a pagar pelo cliente'; },'Nenhuma medição aprovada no mês.')+'<p class="small">Desembolso previsto do cliente: '+f2.proximosMeses.map(function(x){ return mesCurto(x.mes)+' '+brl(x.valor); }).join(' · ')+' · SPI '+fm(f2.spi)+'</p>');
   }
   h+=sec(7,'Aditivos','<p class="small"><strong>Assinados no mês</strong></p>'+lista(d.aditivos.assinadosNoMes,function(a){ return 'Nº '+a.numero+' — '+esc(short(a.descricao,80))+': '+brl(a.valor); },'Nenhum.')+'<p class="small"><strong>Aguardando o cliente</strong></p>'+lista(d.aditivos.aguardando,function(a){ return 'Nº '+a.numero+' — '+esc(short(a.descricao,80))+': '+brl(a.valor); },'Nenhum.'));
-  h+=sec(8,'Pendências de decisão do cliente',lista(d.pendencias,function(p){ return '<strong>'+esc(p.tipo)+'</strong>: '+esc(p.descricao)+(p.prazo?' — decidir até <strong>'+fmt(p.prazo)+'</strong>':''); },'Nenhuma decisão pendente.'));
-  h+=sec(9,'Documentos e conformidade',lista(d.documentos,function(x){ return esc(x.nome)+': <span class="chip '+x.k+'">'+esc(x.situacao)+'</span>'; },''));
-  h+=sec(10,'Próximos 30 dias',lista(d.proximos30,function(e){ return fmt(e.data)+' — '+esc(e.titulo); },'Nada agendado.'));
-  h+=sec(11,'Fotos do mês',(rel.fotos&&rel.fotos.length)?thumbs(rel.fotos):'<p class="muted small">Sem fotos selecionadas.</p>');
+  var sl=d.solicitacoes||{noMes:[],pendentes:[]}, solLi=function(x){ return '<strong>'+esc(x.protocolo)+'</strong> — '+esc(x.tipo)+': '+esc(x.titulo)+' ('+esc(x.status)+')'+(x.dias?' · +'+x.dias+' dias':'')+(x.custo?' · '+(x.custo>0?'+':'')+brl(x.custo):''); };
+  h+=sec(8,'Solicitações e mudanças','<p class="small"><strong>Registradas no mês</strong></p>'+lista(sl.noMes,solLi,'Nenhuma.')+'<p class="small"><strong>Em aberto</strong></p>'+lista(sl.pendentes,solLi,'Nenhuma.'));
+  h+=sec(9,'Pendências de decisão do cliente',lista(d.pendencias,function(p){ return '<strong>'+esc(p.tipo)+'</strong>: '+esc(p.descricao)+(p.prazo?' — decidir até <strong>'+fmt(p.prazo)+'</strong>':''); },'Nenhuma decisão pendente.'));
+  h+=sec(10,'Documentos e conformidade',lista(d.documentos,function(x){ return esc(x.nome)+': <span class="chip '+x.k+'">'+esc(x.situacao)+'</span>'; },''));
+  h+=sec(11,'Próximos 30 dias',lista(d.proximos30,function(e){ return fmt(e.data)+' — '+esc(e.titulo); },'Nada agendado.'));
+  h+=sec(12,'Fotos do mês',(rel.fotos&&rel.fotos.length)?thumbs(rel.fotos):'<p class="muted small">Sem fotos selecionadas.</p>');
   return h+'</article>';
 }
 function relHtmlDocumento(o,rel){
@@ -746,7 +749,7 @@ Object.assign(A5,{
 A5['p0-csv']=function(){ var r=parseRoute(), o=r.oid?G('obras',r.oid):null; if(!o) return; baixar('p0-calibrado-'+chave(o.nome)+'.csv','﻿'+csvP0(o),'text/csv').then(function(ok){ if(ok) toast('P0 calibrado exportado.'); }); };
 
 /* obra encerrada: selo e aviso ao criar algo novo */
-var ACOES_NOVAS=/^(.+-nov[oa]s?|lanc-novo|rel-criar|adt-de-oc|adt-de-mat|loc-nova-eq|orc-importar|av-nova|sug-ok|sug-todas)$/;
+var ACOES_NOVAS=/^(.+-nov[oa]s?|lanc-novo|rel-criar|adt-de-oc|sol-aditivo|adt-de-mat|loc-nova-eq|orc-importar|av-nova|sug-ok|sug-todas)$/;
 document.addEventListener('click', function(e){
   var el=e.target.closest&&e.target.closest('[data-act]'); if(!el||!ACOES_NOVAS.test(el.dataset.act||'')||el.__confirmado) return;
   var r=parseRoute(), oid=el.dataset.oid||r.oid, o=oid?G('obras',oid):null; if(!encerrada(o)||(ui.encOk&&ui.encOk[o.id])) return;
