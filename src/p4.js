@@ -168,7 +168,7 @@ COBX.adtParseItens=adtParseItens;
 function origemAdt(a){
   if(!a.origem) return '';
   if(a.origem.col==='ocorrencias'){ var o=G('ocorrencias',a.origem.id); return 'Ocorrência: '+(o?short(o.descricao,50):'removida'); }
-  if(a.origem.col==='solicitacoes'){ var sl=G('solicitacoes',a.origem.id); return 'Solicitação: '+(sl?sl.titulo:'removida'); }
+  if(a.origem.col==='solicitacoes'){ var sl=G('solicitacoes',a.origem.id); return 'Solicitação '+(sl?solProtocolo(G('obras',sl.obraId),sl)+': '+sl.titulo:'removida'); }
   if(a.origem.col==='materiais'){ var m=G('materiais',a.origem.id); return 'Material: '+(m?m.item:'removido'); }
   return '';
 }
@@ -179,6 +179,7 @@ function aditivosHtml(o){
     var acts='<button class="btn sm ghost" data-act="adt-ver" data-id="'+a.id+'">Ver</button>';
     if(a.status==='rascunho') acts+='<button class="btn sm" data-act="adt-editar" data-id="'+a.id+'" data-write>Editar</button><button class="btn sm primary" data-act="adt-enviar" data-id="'+a.id+'" data-write>Enviar ao cliente</button>';
     if(a.status==='aguardando_cliente') acts+='<button class="btn sm primary" data-act="adt-assinar" data-id="'+a.id+'" data-write>Registrar assinatura</button><button class="btn sm" data-act="adt-recusar" data-id="'+a.id+'" data-write>Recusado</button>';
+    if(a.status==='assinado'&&a.impactoPrazoDias>0&&!a.prazoAplicadoEm) acts+='<button class="btn sm" data-act="adt-prazo" data-id="'+a.id+'" data-write>Aplicar prazo ao cronograma</button>';
     return '<tr><td class="num">'+a.numero+'</td><td>'+esc(short(a.descricao,80))+(origemAdt(a)?'<div class="tiny muted">'+esc(origemAdt(a))+'</div>':'')+'</td><td>'+ADT_TIPO[a.tipo]+'</td><td class="num">'+brl(adtValor(a))+'</td><td class="num">'+(a.impactoPrazoDias?a.impactoPrazoDias+' d':'—')+'</td><td><span class="chip '+(a.status==='assinado'?'ok':(a.status==='recusado'?'crit':(esp?'crit':(a.status==='aguardando_cliente'?'warn':''))))+'">'+ADT_ST[a.status]+(esp?' há mais de '+dias+' dias':'')+'</span></td><td style="white-space:nowrap">'+acts+'</td></tr>';
   }).join(''):'<tr><td colspan="7" class="muted" style="padding:16px">Nenhum aditivo. Solicitação do cliente ou imprevisto que muda escopo, prazo ou valor vira aditivo e só vale depois de assinado.</td></tr>';
   return '<section class="card sec"><div class="card-h"><div><h2>Aditivos</h2><p class="muted small">Só aditivo assinado altera o orçamento revisado.</p></div><button class="btn primary sm" data-act="adt-novo" data-oid="'+oid+'" data-write>+ Aditivo</button></div><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Nº</th><th>Descrição</th><th>Tipo</th><th class="num">Valor</th><th class="num">Prazo</th><th>Situação</th><th></th></tr></thead><tbody>'+linhas+'</tbody></table></div></section>';
@@ -225,13 +226,15 @@ function adtAssinarForm(id){
       if(!(v.ref||'').trim()) return 'Registre como o cliente assinou (obrigatório).';
       if(!v.data) return 'Informe a data.';
       await Store.set('aditivos', id, Object.assign({}, a, {status:'assinado', valor:adtValor(a), assinatura:{data:v.data, ref:v.ref.trim(), anexos:v.anexos||[]}}));
+      await solSyncAditivo(Object.assign({}, a, {status:'assinado'}),'assinado');
+      if((Number(a.impactoPrazoDias)||0)>0) await prazoAplicar('aditivos',id,true);
       toast('Aditivo assinado: o orçamento revisado foi atualizado.');
     }});
 }
 function adtRecusarForm(id){
   var a=G('aditivos',id);
   openForm({title:'Aditivo recusado pelo cliente', fields:[{name:'motivo',label:'Motivo',type:'textarea',required:true,rows:2}], submit:'Registrar recusa',
-    onSubmit:async function(v){ if(!(v.motivo||'').trim()) return 'Registre o motivo.'; await Store.set('aditivos', id, Object.assign({}, a, {status:'recusado', motivoRecusa:v.motivo.trim()})); }});
+    onSubmit:async function(v){ if(!(v.motivo||'').trim()) return 'Registre o motivo.'; await Store.set('aditivos', id, Object.assign({}, a, {status:'recusado', motivoRecusa:v.motivo.trim()})); await solSyncAditivo(a,'recusado',v.motivo.trim()); }});
 }
 
 /* ---------- aba Orçamento ---------- */

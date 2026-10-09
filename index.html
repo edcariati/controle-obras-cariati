@@ -3101,7 +3101,7 @@ COBX.adtParseItens=adtParseItens;
 function origemAdt(a){
   if(!a.origem) return '';
   if(a.origem.col==='ocorrencias'){ var o=G('ocorrencias',a.origem.id); return 'Ocorrência: '+(o?short(o.descricao,50):'removida'); }
-  if(a.origem.col==='solicitacoes'){ var sl=G('solicitacoes',a.origem.id); return 'Solicitação: '+(sl?sl.titulo:'removida'); }
+  if(a.origem.col==='solicitacoes'){ var sl=G('solicitacoes',a.origem.id); return 'Solicitação '+(sl?solProtocolo(G('obras',sl.obraId),sl)+': '+sl.titulo:'removida'); }
   if(a.origem.col==='materiais'){ var m=G('materiais',a.origem.id); return 'Material: '+(m?m.item:'removido'); }
   return '';
 }
@@ -3112,6 +3112,7 @@ function aditivosHtml(o){
     var acts='<button class="btn sm ghost" data-act="adt-ver" data-id="'+a.id+'">Ver</button>';
     if(a.status==='rascunho') acts+='<button class="btn sm" data-act="adt-editar" data-id="'+a.id+'" data-write>Editar</button><button class="btn sm primary" data-act="adt-enviar" data-id="'+a.id+'" data-write>Enviar ao cliente</button>';
     if(a.status==='aguardando_cliente') acts+='<button class="btn sm primary" data-act="adt-assinar" data-id="'+a.id+'" data-write>Registrar assinatura</button><button class="btn sm" data-act="adt-recusar" data-id="'+a.id+'" data-write>Recusado</button>';
+    if(a.status==='assinado'&&a.impactoPrazoDias>0&&!a.prazoAplicadoEm) acts+='<button class="btn sm" data-act="adt-prazo" data-id="'+a.id+'" data-write>Aplicar prazo ao cronograma</button>';
     return '<tr><td class="num">'+a.numero+'</td><td>'+esc(short(a.descricao,80))+(origemAdt(a)?'<div class="tiny muted">'+esc(origemAdt(a))+'</div>':'')+'</td><td>'+ADT_TIPO[a.tipo]+'</td><td class="num">'+brl(adtValor(a))+'</td><td class="num">'+(a.impactoPrazoDias?a.impactoPrazoDias+' d':'—')+'</td><td><span class="chip '+(a.status==='assinado'?'ok':(a.status==='recusado'?'crit':(esp?'crit':(a.status==='aguardando_cliente'?'warn':''))))+'">'+ADT_ST[a.status]+(esp?' há mais de '+dias+' dias':'')+'</span></td><td style="white-space:nowrap">'+acts+'</td></tr>';
   }).join(''):'<tr><td colspan="7" class="muted" style="padding:16px">Nenhum aditivo. Solicitação do cliente ou imprevisto que muda escopo, prazo ou valor vira aditivo e só vale depois de assinado.</td></tr>';
   return '<section class="card sec"><div class="card-h"><div><h2>Aditivos</h2><p class="muted small">Só aditivo assinado altera o orçamento revisado.</p></div><button class="btn primary sm" data-act="adt-novo" data-oid="'+oid+'" data-write>+ Aditivo</button></div><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Nº</th><th>Descrição</th><th>Tipo</th><th class="num">Valor</th><th class="num">Prazo</th><th>Situação</th><th></th></tr></thead><tbody>'+linhas+'</tbody></table></div></section>';
@@ -3158,13 +3159,15 @@ function adtAssinarForm(id){
       if(!(v.ref||'').trim()) return 'Registre como o cliente assinou (obrigatório).';
       if(!v.data) return 'Informe a data.';
       await Store.set('aditivos', id, Object.assign({}, a, {status:'assinado', valor:adtValor(a), assinatura:{data:v.data, ref:v.ref.trim(), anexos:v.anexos||[]}}));
+      await solSyncAditivo(Object.assign({}, a, {status:'assinado'}),'assinado');
+      if((Number(a.impactoPrazoDias)||0)>0) await prazoAplicar('aditivos',id,true);
       toast('Aditivo assinado: o orçamento revisado foi atualizado.');
     }});
 }
 function adtRecusarForm(id){
   var a=G('aditivos',id);
   openForm({title:'Aditivo recusado pelo cliente', fields:[{name:'motivo',label:'Motivo',type:'textarea',required:true,rows:2}], submit:'Registrar recusa',
-    onSubmit:async function(v){ if(!(v.motivo||'').trim()) return 'Registre o motivo.'; await Store.set('aditivos', id, Object.assign({}, a, {status:'recusado', motivoRecusa:v.motivo.trim()})); }});
+    onSubmit:async function(v){ if(!(v.motivo||'').trim()) return 'Registre o motivo.'; await Store.set('aditivos', id, Object.assign({}, a, {status:'recusado', motivoRecusa:v.motivo.trim()})); await solSyncAditivo(a,'recusado',v.motivo.trim()); }});
 }
 
 /* ---------- aba Orçamento ---------- */
@@ -4391,6 +4394,7 @@ function relDados(o,mes){
   }
   d.aditivos={assinadosNoMes:adtAssinados(oid).filter(function(a){ return noMes(a.assinatura&&a.assinatura.data); }).map(function(a){ return {numero:a.numero, descricao:a.descricao, valor:adtValor(a)}; }), aguardando:adtDaObra(oid).filter(function(a){ return a.status==='aguardando_cliente'; }).map(function(a){ return {numero:a.numero, descricao:a.descricao, valor:adtValor(a), enviadoEm:(a.enviadoEm||'').slice(0,10)}; })};
   d.solicitacoes=solRelDados(o,mes);
+  d.diarioPrazo=diarioPrazo(oid,mes);
   d.pendencias=byObra('materiais',oid).filter(function(m){ return m.resultado==='pendente'&&m.nivel3; }).map(function(m){ return {tipo:'Escolha de material', descricao:m.item, prazo:m.prazo}; })
     .concat(d.aditivos.aguardando.map(function(a){ return {tipo:'Aditivo nº '+a.numero, descricao:short(a.descricao,80), prazo:a.enviadoEm?addDays(a.enviadoEm,o.diasEscalar==null?7:o.diasEscalar):''}; }))
     .concat(adm?byObra('compras',oid).filter(function(c){ var nv=c.status==='aprovacao'&&!c.aprov?nivelDaCompra(o,c):null; return nv&&nv.nivel===3; }).map(function(c){ return {tipo:'Compra fora do orçado ou da alçada', descricao:c.item, prazo:limiteCompra(c)}; }):[]);
@@ -4407,7 +4411,7 @@ function relHtml(o,rel){
   h+='<section class="card sec pad rel-sec"><img class="rel-logo" src="'+LOGO+'" alt="Cariati Arquitetura &amp; Gestão"><p class="small muted">Relatório mensal ao cliente'+(rel.retificacaoDe?' — <strong>retificação</strong>':'')+'</p><h1 style="margin:4px 0">'+esc(d.capa.obra)+'</h1><p>'+esc(mesNome(d.mes))+'</p><p class="small muted">'+[d.capa.cliente, d.capa.endereco, d.capa.modalidade, d.capa.empresa].filter(Boolean).map(esc).join(' · ')+(d.capa.codigo?' · '+esc(d.capa.codigo):'')+'</p></section>';
   h+=sec(2,'Resumo da engenharia', rel.textoEngenharia?'<p style="white-space:pre-wrap">'+esc(rel.textoEngenharia)+'</p>':'<p class="muted small">Sem resumo escrito.</p>');
   var cv=d.avanco.curva, g=(cv.meses||[]).length>1?svgGrafico({titulo:'Curva S física', labels:cv.meses.map(mesCurto), linhas:[{nome:'Físico planejado',cor:'var(--steel)',tracejado:true,v:cv.plan},{nome:'Físico realizado',cor:'var(--ok)',v:cv.real}], fmt:function(v){ return Math.round(v)+'%'; }}):'';
-  h+=sec(3,'Avanço físico','<p>Avanço do cronograma: <strong>'+pc(d.avanco.cronograma)+'</strong> · valor executado sobre o orçamento: <strong>'+pc(d.avanco.fisico)+'</strong> · etapas liberadas: <strong>'+d.avanco.liberadasTotal+' de 22</strong></p>'+lista(d.avanco.liberadasNoMes,function(x){ return 'Etapa '+x.n+' — '+esc(x.nome)+' liberada no mês'; },'Nenhuma etapa liberada neste mês.')+g);
+  h+=sec(3,'Avanço físico','<p>Avanço do cronograma: <strong>'+pc(d.avanco.cronograma)+'</strong> · valor executado sobre o orçamento: <strong>'+pc(d.avanco.fisico)+'</strong> · etapas liberadas: <strong>'+d.avanco.liberadasTotal+' de 22</strong></p>'+lista(d.avanco.liberadasNoMes,function(x){ return 'Etapa '+x.n+' — '+esc(x.nome)+' liberada no mês'; },'Nenhuma etapa liberada neste mês.')+(d.diarioPrazo&&(d.diarioPrazo.chuvaDias||d.diarioPrazo.equipeDias)?'<p class="small">Diário do mês: <strong>'+plural(d.diarioPrazo.chuvaDias,'dia de chuva','dias de chuva')+'</strong> ('+d.diarioPrazo.chuvaPerdidos+' impediram o serviço e foram somados ao prazo) · <strong>'+plural(d.diarioPrazo.equipeDias,'dia com equipe faltante','dias com equipe faltante')+'</strong>.</p>':'')+g);
   h+=sec(4,'Qualidade','<p>Conformidade na primeira inspeção: <strong>'+pc(d.qualidade.conformidade)+'</strong> · ocorrências abertas: <strong>'+d.qualidade.abertasAgora+'</strong> ('+d.qualidade.criticasAgora+' crítica(s)) · abertas no mês: '+d.qualidade.abertasNoMes+' · fechadas no mês: '+d.qualidade.fechadasNoMes+' · reaberturas (retrabalho): '+d.qualidade.retrabalho+'</p>');
   var cz=Object.keys(d.planejamento.causas).map(function(k){ return (CAUSAS[k]||k)+': '+d.planejamento.causas[k]; }).join(' · ');
   h+=sec(5,'Planejamento','<p>PPC do mês: <strong>'+pc(d.planejamento.ppc)+'</strong> ('+d.planejamento.concluidos+' de '+d.planejamento.pacotes+' pacotes; meta '+d.planejamento.meta+'%)</p>'+(cz?'<p class="small muted">Causas de não cumprimento — '+esc(cz)+'</p>':''));
@@ -5262,10 +5266,10 @@ function foraEscopoHtml(r,col){
     +'<p class="small">'+(r.motivoFora?esc((TIPOS_OC.filter(function(t){ return t.k===r.motivoFora; })[0]||{n:r.motivoFora}).n)+'. ':'')
     +(a?'Aditivo nº '+a.numero+' — '+esc(ADT_ST[a.status])+(a.status==='assinado'?' (valor '+brl(adtValor(a))+')':''):'Sem aditivo vinculado.')+'</p>'
     +(em?'<p class="small">Autorização de emergência em '+fmt(em.data)+': '+esc(em.motivo||'')+' — registro: '+esc(em.ref)+'. Aditivo deve ser regularizado até <strong>'+fmt(em.regularizarAte)+'</strong>.</p>':'')
-    +'<p class="small" style="margin-top:6px"><a href="'+base+'">Abrir aditivos</a></p>'
+    +(a&&origemAdt(a)?'<p class="small">'+esc(origemAdt(a))+'</p>':'')+'<p class="small" style="margin-top:6px"><a href="'+base+'">Abrir aditivos</a></p>'
     +'<div class="row" style="gap:6px;margin-top:8px"><button class="btn sm" data-act="fe-vincular" data-col="'+col+'" data-id="'+r.id+'" data-write>Vincular aditivo</button>'+(em?'':'<button class="btn sm" data-act="fe-emerg" data-col="'+col+'" data-id="'+r.id+'" data-write>Registrar autorização de emergência</button>')+'</div></div>';
 }
-function adtOptions(oid){ return selOpts(adtDaObra(oid).filter(function(a){ return a.status!=='recusado'; }).map(function(a){ return [a.id, 'Nº '+a.numero+' — '+short(a.descricao,50)+' ('+ADT_ST[a.status]+')']; }), 'Nenhum'); }
+function adtOptions(oid){ return selOpts(adtDaObra(oid).filter(function(a){ return a.status!=='recusado'; }).map(function(a){ return [a.id, 'Nº '+a.numero+' — '+short(a.descricao,50)+' ('+ADT_ST[a.status]+')'+(a.origem&&a.origem.col==='solicitacoes'?' · '+origemAdt(a).split(':')[0]:'')]; }), 'Nenhum'); }
 function reabrirRec(col,id){ if(col==='pedidosPag') pedAbrir(id); else openCompra(id); }
 Object.assign(AG,{
   'fe-vincular':function(d){
@@ -6749,6 +6753,84 @@ function solAditivo(s){ return byObra('aditivos',s.obraId).filter(function(a){ r
 function solEditavel(s){ return SOL_ABERTA.indexOf(s.status)>=0; }
 function solHist(s,acao,obs){ return (s.hist||[]).concat([{acao:acao, data:new Date().toISOString(), por:Store.uid||null, obs:obs||''}]).slice(-30); }
 function solDoDia(oid,e){ return solDaObra(oid).filter(function(s){ return s.diarioId===e.id||(!s.diarioId&&s.data===e.data); }); }
+/* ---- diário: chuva e equipe faltante atualizam o prazo sozinhos ---- */
+var CLIMA_CHUVA=['Chuva fraca','Chuva forte'];
+function diaChuvaPerda(e){ var v=e.chuvaImpediu; return v==='sim'?1:(v==='nao'?0:(e.clima==='Chuva forte'?1:0)); }
+function diaEquipePerda(e){ return e.equipe==='faltou'?1:0; }
+function diarioPrazo(oid,mes){
+  var r={chuvaDias:0,chuvaPerdidos:0,equipeDias:0,equipePerdidos:0,aplicado:0};
+  byObra('diarios',oid).filter(function(e){ return !mes||String(e.data).slice(0,7)===mes; }).forEach(function(e){
+    var c=diaChuvaPerda(e), q=Math.min(diaEquipePerda(e),1-c);
+    if(CLIMA_CHUVA.indexOf(e.clima)>=0) r.chuvaDias++; r.chuvaPerdidos+=c; if(diaEquipePerda(e)) r.equipeDias++; r.equipePerdidos+=q; r.aplicado+=(e.prazoAplicado||0);
+  });
+  return r;
+}
+/* cada dia perdido por chuva empurra as atividades ainda não concluídas; apagar ou corrigir o registro desfaz o ajuste */
+async function prazoSyncDiario(oid){
+  var es=byObra('diarios',oid), delta=0, mud=[];
+  es.forEach(function(e){ var c=diaChuvaPerda(e), ap=e.prazoAplicado||0; if(c!==ap){ delta+=c-ap; mud.push([e,c]); } });
+  if(!mud.length) return;
+  var ats=byObra('atividades',oid); if(!ats.length) return;
+  try{
+    var tasks=[]; ats.forEach(function(a){ var av=a.avanco||0; if(av>=100||!delta) return; tasks.push(Store.set('atividades',a.id,Object.assign({},a,av>0?{fim:addDays(a.fim,delta)}:{inicio:addDays(a.inicio,delta),fim:addDays(a.fim,delta)}))); });
+    mud.forEach(function(m){ tasks.push(Store.set('diarios',m[0].id,Object.assign({},m[0],{prazoAplicado:m[1]}))); });
+    await Promise.all(tasks);
+    if(delta) toast((delta>0?'Chuva: +':'Ajuste: ')+delta+' '+(Math.abs(delta)===1?'dia':'dias')+' no cronograma, automático.');
+  }catch(err){ /* sem permissão para mexer no cronograma: o prazo segue contado como pendente e é aplicado depois */ }
+}
+async function prazoDiarioExcluir(id){
+  var e=G('diarios',id); if(!e) return; var ap=e.prazoAplicado||0;
+  if(ap){ try{ await Promise.all(byObra('atividades',e.obraId).filter(function(a){ return (a.avanco||0)<100; }).map(function(a){ return Store.set('atividades',a.id,Object.assign({},a,(a.avanco||0)>0?{fim:addDays(a.fim,-ap)}:{inicio:addDays(a.inicio,-ap),fim:addDays(a.fim,-ap)})); })); }catch(err){} }
+}
+/* ---- integração: aditivo, prazo no cronograma, compras e pagamentos ---- */
+function prazoFonte(s){ var ad=solAditivo(s); return ad?{col:'aditivos',rec:ad}:{col:'solicitacoes',rec:s}; }
+function prazoAplicado(s){ var f=prazoFonte(s); return !!f.rec.prazoAplicadoEm; }
+function prazoPendenteObra(oid){
+  var t=0, comAd={};
+  adtAssinados(oid).forEach(function(a){ if(a.origem&&a.origem.col==='solicitacoes') comAd[a.origem.id]=1; if(!a.prazoAplicadoEm) t+=Number(a.impactoPrazoDias)||0; });
+  solDaObra(oid).forEach(function(s){ if((s.status==='aprovada'||s.status==='concluida')&&!comAd[s.id]&&!s.prazoAplicadoEm) t+=Number(s.impactoPrazoDias)||0; });
+  byObra('diarios',oid).forEach(function(e){ t+=Math.max(0,diaChuvaPerda(e)-(e.prazoAplicado||0)); });
+  return t;
+}
+function prazoAplicar(col,id,auto){
+  var r=G(col,id); if(!r) return;
+  var bloq=function(t,m,h){ if(!auto) blockDlg(t,m,h); };
+  var dias=Number(r.impactoPrazoDias)||0; if(!(dias>0)||r.prazoAplicadoEm) return;
+  if(col==='aditivos'&&r.status!=='assinado'){ bloq('Aditivo não assinado',['O prazo só entra no cronograma depois que o cliente assina o aditivo.'],'Prazo bloqueado'); return; }
+  if(col==='solicitacoes'&&r.status!=='aprovada'&&r.status!=='concluida'){ bloq('Solicitação não aprovada',['O prazo só entra no cronograma depois da decisão aprovada.'],'Prazo bloqueado'); return; }
+  var oid=r.obraId, ats=byObra('atividades',oid);
+  if(!ats.length){ bloq('Obra sem cronograma',['Monte o cronograma da obra para aplicar o prazo.'],'Prazo bloqueado'); return; }
+  var sl=col==='aditivos'?(r.origem&&r.origem.col==='solicitacoes'?G('solicitacoes',r.origem.id):null):r;
+  var et=sl&&sl.etapa?Number(sl.etapa):((r.itens||[]).map(function(i){ return Number(i.etapa)||0; }).filter(function(x){ return x>0; }).sort(function(a,b){ return a-b; })[0]||0);
+  var alvo=et?ats.filter(function(a){ return a.etapa===et; }):[], depois=et?ats.filter(function(a){ return a.etapa>et; }):[];
+  if(!alvo.length&&!depois.length){ var ult=ats.slice().sort(function(a,b){ return a.fim<b.fim?1:-1; })[0]; alvo=[ult]; }
+  var tasks=[];
+  alvo.forEach(function(a){ tasks.push(Store.set('atividades',a.id,Object.assign({},a,{fim:addDays(a.fim,dias)}))); });
+  depois.forEach(function(a){ tasks.push(Store.set('atividades',a.id,Object.assign({},a,{inicio:addDays(a.inicio,dias),fim:addDays(a.fim,dias)}))); });
+  var upd=Object.assign({},r,{prazoAplicadoEm:hoje(), prazoEtapa:et});
+  if(col==='solicitacoes') upd.hist=solHist(r,'prazo_aplicado',dias+' dias');
+  tasks.push(Store.set(col,id,upd));
+  return Promise.all(tasks).then(function(){ toast('Prazo atualizado automaticamente: +'+dias+' dias no cronograma'+(et?' a partir da etapa '+et+'.':'.')); });
+}
+/* aditivo assinado ou recusado atualiza a solicitação que o originou, para os dois nunca divergirem */
+function solSyncAditivo(a,acao,motivo){
+  if(!a||!a.origem||a.origem.col!=='solicitacoes') return Promise.resolve();
+  var s=G('solicitacoes',a.origem.id); if(!s) return Promise.resolve();
+  if(acao==='assinado') return Store.set('solicitacoes',s.id,Object.assign({},s,{hist:solHist(s,'aditivo_assinado','aditivo nº '+a.numero)}));
+  if(acao==='recusado') return Store.set('solicitacoes',s.id,Object.assign({},s,{status:'recusada', decisao:Object.assign({},s.decisao||{data:hoje(),quem:'Cliente',anexos:[]},{ref:((s.decisao&&s.decisao.ref)||'')+' | Aditivo nº '+a.numero+' recusado pelo cliente: '+(motivo||'')}), hist:solHist(s,'recusada','aditivo recusado')}));
+  return Promise.resolve();
+}
+function solDivergencias(s){
+  var d=[], ad=solAditivo(s); if(!ad) return d;
+  var c=gVe()?solCusto(s):null;
+  if(c!=null&&Math.abs(adtValor(ad)-c)>0.009) d.push('O valor do aditivo nº '+ad.numero+' ('+brl(adtValor(ad))+') é diferente da variação da solicitação ('+brl(c)+').');
+  if((Number(ad.impactoPrazoDias)||0)!==(Number(s.impactoPrazoDias)||0)) d.push('O prazo do aditivo nº '+ad.numero+' ('+(Number(ad.impactoPrazoDias)||0)+' dias) é diferente do da solicitação ('+(Number(s.impactoPrazoDias)||0)+' dias).');
+  return d;
+}
+function solLigados(s){
+  var ad=solAditivo(s); if(!ad) return {compras:[],pedidos:[]};
+  return {compras:byObra('compras',s.obraId).filter(function(c){ return c.aditivoId===ad.id; }), pedidos:byObra('pedidosPag',s.obraId).filter(function(p){ return p.aditivoId===ad.id; })};
+}
 function solResumo(oid){
   var l=solDaObra(oid), ab=l.filter(function(s){ return solEditavel(s); }), cust=function(f){ return r2(l.filter(f).reduce(function(t,s){ return t+(solCusto(s)||0); },0)); };
   return {total:l.length, abertas:ab.length, aguardando:l.filter(function(s){ return s.status==='aguardando_decisao'; }).length,
@@ -6795,7 +6877,11 @@ function solMover(id,to){
   var s=G('solicitacoes',id); if(!s) return;
   if(to==='aguardando_decisao' && !(s.impactoDesc||'').trim()){ blockDlg('Falta descrever o impacto',['Preencha “Impacto: o que muda em custo, prazo, projeto ou qualidade” antes de enviar para decisão.'],'Envio bloqueado'); return; }
   if(to==='concluida'){
-    var c=solCusto(s); if(c&&!solAditivo(s)){ blockDlg('Falta o aditivo',['Esta solicitação tem variação de custo. Gere o aditivo antes de concluir, para o valor entrar no orçamento revisado.'],'Conclusão bloqueada'); return; }
+    var c=solCusto(s), ad=solAditivo(s), m=[];
+    if(c&&!ad) m.push('Esta solicitação tem variação de custo. Gere o aditivo para o valor entrar no orçamento revisado.');
+    else if(ad&&ad.status!=='assinado') m.push('O aditivo nº '+ad.numero+' está “'+ADT_ST[ad.status]+'”. Só conclui depois de assinado pelo cliente.');
+    if((Number(s.impactoPrazoDias)||0)>0 && !prazoAplicado(s)) m.push('Aplique os '+s.impactoPrazoDias+' dias de prazo ao cronograma antes de concluir.');
+    if(m.length){ blockDlg('Falta integrar a solicitação',m,'Conclusão bloqueada'); return; }
   }
   return Store.set('solicitacoes', id, Object.assign({}, s, {status:to, hist:solHist(s,to)}));
 }
@@ -6812,6 +6898,7 @@ function solDecidir(id){
       if(!(v.quem||'').trim()) return 'Diga quem decidiu.';
       if(!(v.ref||'').trim()) return 'Registre como foi decidido (obrigatório).';
       await Store.set('solicitacoes', id, Object.assign({}, s, {status:v.resultado, decisao:{data:v.data, quem:v.quem.trim(), ref:v.ref.trim(), anexos:v.anexos||[]}, hist:solHist(s,v.resultado,v.quem.trim())}));
+      if(v.resultado==='aprovada'&&(Number(s.impactoPrazoDias)||0)>0&&!solCusto(s)) await prazoAplicar('solicitacoes',id,true);
       toast('Decisão registrada.');
     }});
 }
@@ -6823,6 +6910,7 @@ function solAcoes(s){
   if(s.status==='registrada') a+='<button class="btn sm primary" data-act="sol-mover" data-id="'+s.id+'" data-to="em_analise" data-write>Iniciar análise</button>';
   if(s.status==='em_analise') a+='<button class="btn sm primary" data-act="sol-mover" data-id="'+s.id+'" data-to="aguardando_decisao" data-write>Enviar para decisão</button>';
   if(s.status==='aguardando_decisao') a+='<button class="btn sm primary" data-act="sol-decidir" data-id="'+s.id+'" data-write>Registrar decisão</button>';
+  if((s.status==='aprovada'||s.status==='concluida')&&(Number(s.impactoPrazoDias)||0)>0&&!prazoAplicado(s)){ var fa=prazoFonte(s); if(fa.col==='solicitacoes'||fa.rec.status==='assinado') a+='<button class="btn sm" data-act="sol-prazo" data-id="'+s.id+'" data-write>Aplicar prazo ao cronograma</button>'; }
   if(s.status==='aprovada'&&gVe()){ if(!solAditivo(s)) a+='<button class="btn sm" data-act="sol-aditivo" data-id="'+s.id+'" data-write>Gerar aditivo</button>'; a+='<button class="btn sm primary" data-act="sol-mover" data-id="'+s.id+'" data-to="concluida" data-write>Marcar concluída</button>'; }
   return a;
 }
@@ -6832,7 +6920,7 @@ function solCard(o,s,compacto){
     +'<p style="margin-top:8px"><strong>'+esc(s.titulo)+'</strong></p>'
     +(compacto?'':'<p class="small" style="white-space:pre-wrap;margin-top:4px">'+esc(s.descricao)+'</p>')
     +'<p class="small muted" style="margin-top:6px">'+esc(solNome(SOL_ORIGENS,s.origem))+(s.solicitante?' · '+esc(s.solicitante):'')+' · '+fmt(s.data)+(s.etapa?' · etapa '+s.etapa:'')+(s.local?' · '+esc(s.local):'')+'</p>'
-    +'<div class="row" style="gap:6px;margin-top:6px">'+(s.impactoPrazoDias?'<span class="chip warn">+'+s.impactoPrazoDias+' dias</span>':'')+(c!=null&&c!==0?'<span class="chip '+(c>0?'warn':'ok')+'">'+(c>0?'+':'')+brl(c)+'</span>':'')+(ad?'<span class="chip">Aditivo nº '+ad.numero+' ('+ADT_ST[ad.status]+')</span>':'')+'</div></article>';
+    +'<div class="row" style="gap:6px;margin-top:6px">'+(s.impactoPrazoDias?'<span class="chip warn">+'+s.impactoPrazoDias+' dias</span>':'')+(c!=null&&c!==0?'<span class="chip '+(c>0?'warn':'ok')+'">'+(c>0?'+':'')+brl(c)+'</span>':'')+(ad?'<span class="chip">Aditivo nº '+ad.numero+' ('+ADT_ST[ad.status]+')</span>':'')+((s.status==='aprovada'||s.status==='concluida')&&s.impactoPrazoDias&&prazoAplicado(s)?'<span class="chip ok">Prazo no cronograma</span>':'')+(solDivergencias(s).length?'<span class="chip crit">Divergência</span>':'')+'</div></article>';
 }
 function tSolicitacoes(o){
   var oid=o.id, all=solDaObra(oid), f=ui.solF||'', r=solResumo(oid), ve=gVe();
@@ -6843,6 +6931,13 @@ function tSolicitacoes(o){
   var chips='<div class="row" style="gap:6px;margin:14px 0">'+[['','Todas'],['abertas','Em aberto'],['aprovada','Aprovadas'],['recusada','Recusadas'],['concluida','Concluídas']].map(function(x){ return '<button class="btn sm'+(f===x[0]?' primary':'')+'" data-act="sol-filtro" data-f="'+x[0]+'">'+x[1]+'</button>'; }).join('')+'</div>';
   var corpo=lista.length?'<div class="card">'+lista.map(function(s){ return solCard(o,s); }).join('')+'</div>':'<div class="card empty"><h3>'+(all.length?'Nada neste filtro':'Nenhuma solicitação registrada')+'</h3><p>Pedido do cliente, mudança de projeto ou de material, ou ajuste de escopo da equipe técnica: registre aqui, com o impacto em custo e prazo.</p></div>';
   return head+cards+chips+corpo;
+}
+function diarioPrazoHtml(o){
+  var r=diarioPrazo(o.id); if(!r.chuvaDias&&!r.equipeDias) return '';
+  var kp=function(t,v,sub){ return '<div class="card pad"><div class="small muted">'+t+'</div><div class="num" style="font-size:22px;font-weight:600">'+v+'</div><div class="tiny muted">'+sub+'</div></div>'; };
+  return '<div class="grid cols3" style="margin-top:14px">'+kp('Dias de chuva',r.chuvaDias,plural(r.chuvaPerdidos,'dia impediu o serviço','dias impediram o serviço'))
+    +kp('Dias com equipe faltante',r.equipeDias,'contam como atraso, sem estender o prazo')
+    +kp('Prazo ajustado por chuva','+'+r.chuvaPerdidos+' d','automático no cronograma e no término previsto')+'</div>';
 }
 function solDiarioHtml(o,e){
   var l=solDoDia(o.id,e);
@@ -6861,6 +6956,9 @@ function solVer(id){
     +anexosHtml(s.anexos)
     +(d?'<div class="callout '+(s.status==='recusada'?'crit':'ok')+'" style="margin-top:12px"><strong>'+(s.status==='recusada'?'Recusada':'Aprovada')+' em '+fmt(d.data)+' por '+esc(d.quem)+'</strong><p class="small" style="white-space:pre-wrap">'+esc(d.ref)+'</p>'+anexosHtml(d.anexos)+'</div>':'')
     +(ad?'<p class="small" style="margin-top:10px">Aditivo vinculado: nº '+ad.numero+' ('+ADT_ST[ad.status]+')</p>':'')
+    +((s.impactoPrazoDias>0&&(s.status==='aprovada'||s.status==='concluida'))?'<p class="small" style="margin-top:6px">Prazo: '+(prazoAplicado(s)?'+'+s.impactoPrazoDias+' dias já aplicados ao cronograma.':'+'+s.impactoPrazoDias+' dias ainda não aplicados ao cronograma.')+'</p>':'')
+    +solDivergencias(s).map(function(m){ return '<div class="callout crit" style="margin-top:8px"><p class="small">'+esc(m)+'</p></div>'; }).join('')
+    +(function(){ var l=solLigados(s); return (l.compras.length||l.pedidos.length)?'<p class="small" style="margin-top:6px">Ligados: '+(l.compras.length?plural(l.compras.length,'compra','compras')+' ('+esc(l.compras.slice(0,3).map(function(c){ return c.item; }).join(', '))+')':'')+(l.compras.length&&l.pedidos.length?' · ':'')+(l.pedidos.length?plural(l.pedidos.length,'pedido de pagamento','pedidos de pagamento'):'')+'</p>':''; })()
     +'<p class="small" style="margin-top:12px;font-weight:600">Histórico</p><ul class="lst">'+(s.hist||[]).map(function(h){ return '<li>'+fmt((h.data||'').slice(0,10))+' — '+esc(SOL_ST[h.acao]||h.acao)+' · '+esc(Names.get(h.por))+(h.obs?' ('+esc(h.obs)+')':'')+'</li>'; }).join('')+'</ul>'
     +'</div><div class="dlg-f"><button class="btn" data-act="sol-protocolo" data-id="'+s.id+'">Protocolo para imprimir</button><button class="btn primary" data-close>Fechar</button></div>', true);
 }
@@ -6885,9 +6983,18 @@ function alertasSol(o){
   var dias=o.diasEscalar==null?7:o.diasEscalar, hj=hoje(), A=[];
   var par=solDaObra(o.id).filter(function(s){ if(s.status!=='aguardando_decisao') return false; var h=(s.hist||[]).filter(function(x){ return x.acao==='aguardando_decisao'; }).pop(); return h&&diffDays(h.data.slice(0,10),hj)>dias; });
   if(par.length) A.push({k:'warn', t:plural(par.length,'solicitação aguardando decisão','solicitações aguardando decisão')+' há mais de '+dias+' dias: '+par.slice(0,2).map(function(s){ return solProtocolo(o,s); }).join(', ')+'.', to:'#/obra/'+o.id+'/solicitacoes'});
+  solDaObra(o.id).forEach(function(s){
+    var dv=solDivergencias(s); if(dv.length) A.push({k:'crit', t:solProtocolo(o,s)+': '+dv[0], to:'#/obra/'+o.id+'/solicitacoes'});
+    if(s.status==='aprovada'&&gVe()&&solCusto(s)&&!solAditivo(s)) A.push({k:'warn', t:solProtocolo(o,s)+' aprovada com variação de custo e sem aditivo: gere o aditivo.', to:'#/obra/'+o.id+'/solicitacoes'});
+  });
+  var eq=byObra('diarios',o.id).filter(function(e){ return diaEquipePerda(e)&&diffDays(e.data,hj)<=15&&diffDays(e.data,hj)>=0; }).length;
+  if(eq>=2) A.push({k:'warn', t:plural(eq,'dia','dias')+' com equipe faltante nos últimos 15 dias: confira com o prestador.', to:'#/obra/'+o.id+'/diario'});
+  var pend=prazoPendenteObra(o.id); if(pend>0) A.push({k:'warn', t:'+'+pend+' dias de prazo aprovados ainda não aplicados ao cronograma.', to:'#/obra/'+o.id+'/solicitacoes'});
   return A;
 }
 Object.assign(AG,{
+  'sol-prazo':function(d){ var f=prazoFonte(G('solicitacoes',d.id)); prazoAplicar(f.col,f.rec.id); },
+  'adt-prazo':function(d){ prazoAplicar('aditivos',d.id); },
   'sol-nova':function(d){ var o=d.dia?G('diarios',d.dia):null; solForm(d.oid,null,{data:d.data||hoje(), diarioId:o?o.id:''}); },
   'sol-editar':function(d){ var s=G('solicitacoes',d.id); solForm(s.obraId,s); },
   'sol-ver':function(d){ solVer(d.id); },
@@ -6898,7 +7005,7 @@ Object.assign(AG,{
   'sol-aditivo':function(d){ var s=G('solicitacoes',d.id), c=solCusto(s)||0; aditivoForm(s.obraId,null,{origem:{col:'solicitacoes',id:s.id}, descricao:s.titulo+'. '+s.descricao, tipo:c<0?'supressao':'acrescimo', impactoPrazoDias:Number(s.impactoPrazoDias)||0}); },
   'sol-protocolo':function(d){ var s=G('solicitacoes',d.id), o=G('obras',s.obraId); baixar('protocolo-'+solProtocolo(o,s)+'.html', solProtocoloHtml(o,s), 'text/html').then(function(ok){ if(ok) toast('Protocolo baixado: abra e imprima ou salve como PDF.'); }); }
 });
-COBX.solDaObra=solDaObra; COBX.solProtocoloHtml=solProtocoloHtml; COBX.solResumo=solResumo; COBX.solProtocolo=solProtocolo; COBX.tSolicitacoes=tSolicitacoes; COBX.alertasSol=alertasSol;
+COBX.solDaObra=solDaObra; COBX.diarioPrazo=diarioPrazo; COBX.prazoSyncDiario=prazoSyncDiario; COBX.diaChuvaPerda=diaChuvaPerda; COBX.diffDays=diffDays; COBX.addDays=addDays; COBX.origemAdt=origemAdt; COBX.prazoPendenteObra=prazoPendenteObra; COBX.solDivergencias=solDivergencias; COBX.solProtocoloHtml=solProtocoloHtml; COBX.solResumo=solResumo; COBX.solProtocolo=solProtocolo; COBX.tSolicitacoes=tSolicitacoes; COBX.alertasSol=alertasSol;
 /* ================= PAINEL DE INDICADORES (tela principal) =================
    Perspectivas no estilo Balanced Scorecard: Prazo e execução · Qualidade · Financeiro · Prestadores · Cliente.
    Só usa o que o app já calcula (nenhuma regra nova). Valores em R$ só para quem pode vê-los. */
@@ -7062,7 +7169,7 @@ function fluxoJornada(o){
   var J=[
     ['Cadastro','Quem é o cliente, onde é a obra, o que foi contratado e para onde vão os pagamentos.',[['Cadastros (clientes, prestadores, fornecedores, usuários)',staff?'#/cadastros':''],['Cadastro da obra: cliente, endereço, serviços contratados, conta',fluxoTab(o,'cadastro')],['Arquivos recebidos dos outros aplicativos',fluxoTab(o,'cadastro')]]],
     ['Planejamento','Orçamento, cronograma e programação de compras antes de abrir a frente.',[['Orçamento',fluxoTab(o,'orcamento')],['Cronograma e linha de base',fluxoTab(o,'cronograma')],['Físico-financeiro',fluxoTab(o,'fisfin')],['Contratos e frentes de prestadores',fluxoTab(o,'contratos')]]],
-    ['Execução e qualidade','As 22 etapas, cada uma liberada na vistoria, com apontamentos e conclusão.',[['Etapas, quadro de evolução e apontamentos',fluxoTab(o,'etapas')],['Diário de obra',fluxoTab(o,'diario')],['Ocorrências e fichas de verificação',fluxoTab(o,'ocorrencias')],['Semana e PPC',fluxoTab(o,'semana')]]],
+    ['Execução e qualidade','As 22 etapas, cada uma liberada na vistoria, com apontamentos e conclusão.',[['Etapas, quadro de evolução e apontamentos',fluxoTab(o,'etapas')],['Diário de obra',fluxoTab(o,'diario')],['Solicitações e mudanças (protocolo)',fluxoTab(o,'solicitacoes')],['Ocorrências e fichas de verificação',fluxoTab(o,'ocorrencias')],['Semana e PPC',fluxoTab(o,'semana')]]],
     ['Suprimentos e financeiro','Compras, medições, pedidos de pagamento e fluxo do mês.',[['Compras e cotações',fluxoTab(o,'compras')],['Medição de serviços',fluxoTab(o,'medicao')],['Pedidos de pagamento e fora do escopo',fluxoTab(o,'pedidos')],['Financeiro e pagamentos e prazos',fluxoTab(o,'financeiro')],['Estoque e locações',fluxoTab(o,'estoque')]]],
     ['Gestão','Leitura rápida para decidir: atrasos, o que comprar, meta × evolução e relatórios ao cliente.',[['Visão geral (7, 15, 30, 90 e 120 dias)',staff?'#/visao':''],['Meta × evolução × pagamentos',fluxoTab(o,'metaevo')],['Relatório quinzenal ao cliente',fluxoTab(o,'quinzenal')],['Relatório mensal',fluxoTab(o,'relatorio')],['DRE e fluxo de caixa',staff?'#/dre':'']]],
     ['Entrega e pós-obra','Fim de obra alinhado às compras, entrega formal, garantias e visitas.',[['Encerramento e P0',fluxoTab(o,'encerramento')],['Pré-entrega',fluxoTab(o,'entrega')],['Garantias, chamados e satisfação',fluxoTab(o,'garantias')]]]
@@ -7639,7 +7746,8 @@ function pnFisico(oid){
 function pnProjecao(oid,fis,plan){
   var ats=byObra('atividades',oid); if(!ats.length) return null;
   var ini=ats.reduce(function(m,a){ return a.inicio<m?a.inicio:m; },ats[0].inicio), fim=ats.reduce(function(m,a){ return a.fim>m?a.fim:m; },ats[0].fim), hj=hoje();
-  var out={ini:ini, fim:fim, proj:fim, atraso:0};
+  var pend=prazoPendenteObra(oid); fim=addDays(fim,pend);
+  var out={ini:ini, fim:fim, proj:fim, atraso:0, pend:pend};
   if(plan>0&&fis!=null&&hj>ini&&hj<fim){ var spi=Math.max(0.5,Math.min(1.5,(fis||0.01)/plan)), dias=diffDays(ini,fim)+1; out.proj=addDays(ini,Math.ceil(dias/spi)-1); out.atraso=Math.max(0,diffDays(fim,out.proj)); out.spi=spi; }
   else if(hj>=fim&&fis!=null&&fis<100){ out.atraso=diffDays(fim,hj); out.proj=hj; }
   return out;
@@ -7673,7 +7781,7 @@ function tPainelObra(o){
     +kp('Entregas de compras atrasadas',A.entregas.length,A.pedir.length?plural(A.pedir.length,'pedido fora do prazo','pedidos fora do prazo'):'fornecedores em dia',A.entregas.length?'crit':(A.pedir.length?'warn':'ok'),b+'compras')
     +(ve?kp('Pagamentos vencidos',A.pagos.length,A.pagos.length?'conferir no financeiro':'em dia',A.pagos.length?'crit':'ok',b+'pagprazos'):'')
     +kp('Relatórios quinzenais em atraso',A.quinz.length,A.quinz.length?'engenharia deve emitir':'em dia',A.quinz.length?'warn':'ok',b+'quinzenal')
-    +kp('Término previsto',proj?fmt(proj.fim):'—',proj?(proj.atraso>0?'projeção: '+fmt(proj.proj)+' ('+plural(proj.atraso,'dia','dias')+' a mais)':'dentro do cronograma'):'monte o cronograma',proj&&proj.atraso>0?'crit':(proj?'ok':''),b+'cronograma')+'</div>';
+    +kp('Término previsto',proj?fmt(proj.fim):'—',proj?(proj.atraso>0?'projeção: '+fmt(proj.proj)+' ('+plural(proj.atraso,'dia','dias')+' a mais)':'dentro do cronograma')+(proj.pend?' · inclui +'+proj.pend+' dias de aditivo':''):'monte o cronograma',proj&&proj.atraso>0?'crit':(proj?'ok':''),b+'cronograma')+'</div>';
   /* curva S grande: a física (com orçamento) ou a do cronograma */
   var curva='';
   if(ats.length){
@@ -7952,10 +8060,10 @@ function tDiario(o){
   var head='<div class="sec-h"><div><h2>Diário de obra</h2><p class="muted small">Registro diário com fotos datadas de cada serviço antes de ser coberto.</p></div><button class="btn primary" data-act="dia-novo" data-oid="'+o.id+'" data-write>+ Registro do dia</button></div>';
   if(!es.length) return head+'<div class="card empty" style="margin-top:14px"><h3>Nenhum registro ainda</h3><p>Registre efetivo, clima, o que foi executado e as fotos do dia.</p></div>';
   var dsem=['dom','seg','ter','qua','qui','sex','sáb'];
-  return head+'<div class="card" style="margin-top:14px">'+es.map(function(e){
+  return head+diarioPrazoHtml(o)+'<div class="card" style="margin-top:14px">'+es.map(function(e){
     var tot=(e.efetivo||[]).reduce(function(s,r){ return s+(r.q||0); },0);
     var ef=(e.efetivo||[]).map(function(r){ return esc(prestNome(r.p)||'Prestador removido')+' ('+r.q+')'; }).join(', ');
-    return '<article class="entry"><div class="row spread"><div class="row"><strong class="num" style="font-size:17px">'+fmt(e.data)+'</strong><span class="muted small">'+dsem[parse(e.data).getDay()]+'</span>'+(e.clima?'<span class="chip">'+esc(e.clima)+'</span>':'')+(tot?'<span class="chip steel">'+tot+' no efetivo</span>':'')+'</div><div class="row"><button class="btn sm ghost" data-act="dia-editar" data-id="'+e.id+'" data-write>Editar</button><button class="btn sm ghost" data-act="dia-excluir" data-id="'+e.id+'" data-write aria-label="Excluir registro">×</button></div></div>'
+    return '<article class="entry"><div class="row spread"><div class="row"><strong class="num" style="font-size:17px">'+fmt(e.data)+'</strong><span class="muted small">'+dsem[parse(e.data).getDay()]+'</span>'+(e.clima?'<span class="chip">'+esc(e.clima)+'</span>':'')+(diaChuvaPerda(e)?'<span class="chip warn">Chuva impediu: dia perdido</span>':'')+(diaEquipePerda(e)?'<span class="chip crit">Equipe faltante</span>':'')+(tot?'<span class="chip steel">'+tot+' no efetivo</span>':'')+'</div><div class="row"><button class="btn sm ghost" data-act="dia-editar" data-id="'+e.id+'" data-write>Editar</button><button class="btn sm ghost" data-act="dia-excluir" data-id="'+e.id+'" data-write aria-label="Excluir registro">×</button></div></div>'
       +(ef?'<p class="small muted" style="margin-top:6px">Efetivo: '+ef+'</p>':'')
       +'<p style="margin-top:8px;white-space:pre-wrap">'+esc(e.atividades)+'</p>'+(e.obs?'<p class="small muted" style="margin-top:6px;white-space:pre-wrap">'+esc(e.obs)+'</p>':'')+thumbs(e.fotos)
       +solDiarioHtml(o,e)
@@ -8236,6 +8344,7 @@ function diarioForm(oid, e){
     title:novo?'Registro do dia':'Editar registro', wide:true,
     fields:[
       [{name:'data',label:'Data',type:'date',required:true,value:e?e.data:hoje()},{name:'clima',label:'Clima',type:'select',options:selOpts(CLIMA.map(function(c){return [c,c];}),'—'),value:e&&e.clima}],
+      [{name:'chuvaImpediu',label:'A chuva impediu o serviço?',type:'select',options:[['','Automático (chuva forte = dia perdido)'],['nao','Não impediu'],['sim','Sim, dia perdido']],value:e&&e.chuvaImpediu||'',hint:'Dia perdido por chuva empurra o cronograma e o término previsto sozinho.'},{name:'equipe',label:'Equipe do dia',type:'select',options:[['','Equipe completa'],['faltou','Equipe faltante (dia perdido)']],value:e&&e.equipe||'',hint:'Equipe faltante conta como atraso e gera alerta, mas não estende o prazo.'}],
       {name:'efetivo',label:'Efetivo do dia',type:'efetivo',options:prestOptions('Selecione o prestador…'),value:e&&e.efetivo,hint:'Prestador com seguro ou treinamento vencido não pode ser lançado.'},
       {name:'atividades',label:'O que foi executado',type:'textarea',required:true,rows:4,value:e&&e.atividades,ph:'Serviços do dia, por frente. No celular, use o ditado do teclado.'},
       {name:'obs',label:'Observações',type:'textarea',rows:2,value:e&&e.obs},
@@ -8244,8 +8353,9 @@ function diarioForm(oid, e){
     onSubmit:async function(v){
       if(!v.data) return 'Informe a data.';
       if(!(v.atividades||'').trim()) return 'Descreva o que foi executado.';
-      var data=Object.assign({}, e||{}, {obraId:oid, data:v.data, clima:v.clima||'', efetivo:v.efetivo||[], atividades:v.atividades.trim(), obs:v.obs||'', fotos:v.fotos||[], por:(e&&e.por)||Store.uid||null});
+      var data=Object.assign({}, e||{}, {obraId:oid, data:v.data, clima:v.clima||'', efetivo:v.efetivo||[], chuvaImpediu:v.chuvaImpediu||'', equipe:v.equipe||'', atividades:v.atividades.trim(), obs:v.obs||'', fotos:v.fotos||[], por:(e&&e.por)||Store.uid||null});
       await Store.set('diarios', e?e.id:nid(), data);
+      await prazoSyncDiario(oid);
     }
   });
 }
@@ -8389,7 +8499,7 @@ var A={
   'pac-levar':function(d){ levarPendentes(d.oid); },
   'dia-novo':function(d){ diarioForm(d.oid); },
   'dia-editar':function(d){ var e=G('diarios',d.id); diarioForm(e.obraId,e); },
-  'dia-excluir':async function(d){ var ok=await confirmDlg('Excluir registro do dia?','<p>Fotos e texto deste dia serão removidos do diário.</p>','Excluir',true); if(ok) Store.del('diarios',d.id); },
+  'dia-excluir':async function(d){ var ok=await confirmDlg('Excluir registro do dia?','<p>Fotos e texto deste dia serão removidos do diário.</p>','Excluir',true); if(ok){ await prazoDiarioExcluir(d.id); await Store.del('diarios',d.id); } },
   'oc-nova':function(d){ ocForm(d.oid, null, d.n?Number(d.n):0); },
   'oc-abrir':function(d){ openOc(d.id); },
   'oc-editar':function(d){ var o=G('ocorrencias',d.id); ocForm(o.obraId,o); },

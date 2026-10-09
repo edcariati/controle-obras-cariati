@@ -118,10 +118,10 @@ function foraEscopoHtml(r,col){
     +'<p class="small">'+(r.motivoFora?esc((TIPOS_OC.filter(function(t){ return t.k===r.motivoFora; })[0]||{n:r.motivoFora}).n)+'. ':'')
     +(a?'Aditivo nº '+a.numero+' — '+esc(ADT_ST[a.status])+(a.status==='assinado'?' (valor '+brl(adtValor(a))+')':''):'Sem aditivo vinculado.')+'</p>'
     +(em?'<p class="small">Autorização de emergência em '+fmt(em.data)+': '+esc(em.motivo||'')+' — registro: '+esc(em.ref)+'. Aditivo deve ser regularizado até <strong>'+fmt(em.regularizarAte)+'</strong>.</p>':'')
-    +'<p class="small" style="margin-top:6px"><a href="'+base+'">Abrir aditivos</a></p>'
+    +(a&&origemAdt(a)?'<p class="small">'+esc(origemAdt(a))+'</p>':'')+'<p class="small" style="margin-top:6px"><a href="'+base+'">Abrir aditivos</a></p>'
     +'<div class="row" style="gap:6px;margin-top:8px"><button class="btn sm" data-act="fe-vincular" data-col="'+col+'" data-id="'+r.id+'" data-write>Vincular aditivo</button>'+(em?'':'<button class="btn sm" data-act="fe-emerg" data-col="'+col+'" data-id="'+r.id+'" data-write>Registrar autorização de emergência</button>')+'</div></div>';
 }
-function adtOptions(oid){ return selOpts(adtDaObra(oid).filter(function(a){ return a.status!=='recusado'; }).map(function(a){ return [a.id, 'Nº '+a.numero+' — '+short(a.descricao,50)+' ('+ADT_ST[a.status]+')']; }), 'Nenhum'); }
+function adtOptions(oid){ return selOpts(adtDaObra(oid).filter(function(a){ return a.status!=='recusado'; }).map(function(a){ return [a.id, 'Nº '+a.numero+' — '+short(a.descricao,50)+' ('+ADT_ST[a.status]+')'+(a.origem&&a.origem.col==='solicitacoes'?' · '+origemAdt(a).split(':')[0]:'')]; }), 'Nenhum'); }
 function reabrirRec(col,id){ if(col==='pedidosPag') pedAbrir(id); else openCompra(id); }
 Object.assign(AG,{
   'fe-vincular':function(d){

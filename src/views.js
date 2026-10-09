@@ -209,10 +209,10 @@ function tDiario(o){
   var head='<div class="sec-h"><div><h2>Diário de obra</h2><p class="muted small">Registro diário com fotos datadas de cada serviço antes de ser coberto.</p></div><button class="btn primary" data-act="dia-novo" data-oid="'+o.id+'" data-write>+ Registro do dia</button></div>';
   if(!es.length) return head+'<div class="card empty" style="margin-top:14px"><h3>Nenhum registro ainda</h3><p>Registre efetivo, clima, o que foi executado e as fotos do dia.</p></div>';
   var dsem=['dom','seg','ter','qua','qui','sex','sáb'];
-  return head+'<div class="card" style="margin-top:14px">'+es.map(function(e){
+  return head+diarioPrazoHtml(o)+'<div class="card" style="margin-top:14px">'+es.map(function(e){
     var tot=(e.efetivo||[]).reduce(function(s,r){ return s+(r.q||0); },0);
     var ef=(e.efetivo||[]).map(function(r){ return esc(prestNome(r.p)||'Prestador removido')+' ('+r.q+')'; }).join(', ');
-    return '<article class="entry"><div class="row spread"><div class="row"><strong class="num" style="font-size:17px">'+fmt(e.data)+'</strong><span class="muted small">'+dsem[parse(e.data).getDay()]+'</span>'+(e.clima?'<span class="chip">'+esc(e.clima)+'</span>':'')+(tot?'<span class="chip steel">'+tot+' no efetivo</span>':'')+'</div><div class="row"><button class="btn sm ghost" data-act="dia-editar" data-id="'+e.id+'" data-write>Editar</button><button class="btn sm ghost" data-act="dia-excluir" data-id="'+e.id+'" data-write aria-label="Excluir registro">×</button></div></div>'
+    return '<article class="entry"><div class="row spread"><div class="row"><strong class="num" style="font-size:17px">'+fmt(e.data)+'</strong><span class="muted small">'+dsem[parse(e.data).getDay()]+'</span>'+(e.clima?'<span class="chip">'+esc(e.clima)+'</span>':'')+(diaChuvaPerda(e)?'<span class="chip warn">Chuva impediu: dia perdido</span>':'')+(diaEquipePerda(e)?'<span class="chip crit">Equipe faltante</span>':'')+(tot?'<span class="chip steel">'+tot+' no efetivo</span>':'')+'</div><div class="row"><button class="btn sm ghost" data-act="dia-editar" data-id="'+e.id+'" data-write>Editar</button><button class="btn sm ghost" data-act="dia-excluir" data-id="'+e.id+'" data-write aria-label="Excluir registro">×</button></div></div>'
       +(ef?'<p class="small muted" style="margin-top:6px">Efetivo: '+ef+'</p>':'')
       +'<p style="margin-top:8px;white-space:pre-wrap">'+esc(e.atividades)+'</p>'+(e.obs?'<p class="small muted" style="margin-top:6px;white-space:pre-wrap">'+esc(e.obs)+'</p>':'')+thumbs(e.fotos)
       +solDiarioHtml(o,e)
@@ -493,6 +493,7 @@ function diarioForm(oid, e){
     title:novo?'Registro do dia':'Editar registro', wide:true,
     fields:[
       [{name:'data',label:'Data',type:'date',required:true,value:e?e.data:hoje()},{name:'clima',label:'Clima',type:'select',options:selOpts(CLIMA.map(function(c){return [c,c];}),'—'),value:e&&e.clima}],
+      [{name:'chuvaImpediu',label:'A chuva impediu o serviço?',type:'select',options:[['','Automático (chuva forte = dia perdido)'],['nao','Não impediu'],['sim','Sim, dia perdido']],value:e&&e.chuvaImpediu||'',hint:'Dia perdido por chuva empurra o cronograma e o término previsto sozinho.'},{name:'equipe',label:'Equipe do dia',type:'select',options:[['','Equipe completa'],['faltou','Equipe faltante (dia perdido)']],value:e&&e.equipe||'',hint:'Equipe faltante conta como atraso e gera alerta, mas não estende o prazo.'}],
       {name:'efetivo',label:'Efetivo do dia',type:'efetivo',options:prestOptions('Selecione o prestador…'),value:e&&e.efetivo,hint:'Prestador com seguro ou treinamento vencido não pode ser lançado.'},
       {name:'atividades',label:'O que foi executado',type:'textarea',required:true,rows:4,value:e&&e.atividades,ph:'Serviços do dia, por frente. No celular, use o ditado do teclado.'},
       {name:'obs',label:'Observações',type:'textarea',rows:2,value:e&&e.obs},
@@ -501,8 +502,9 @@ function diarioForm(oid, e){
     onSubmit:async function(v){
       if(!v.data) return 'Informe a data.';
       if(!(v.atividades||'').trim()) return 'Descreva o que foi executado.';
-      var data=Object.assign({}, e||{}, {obraId:oid, data:v.data, clima:v.clima||'', efetivo:v.efetivo||[], atividades:v.atividades.trim(), obs:v.obs||'', fotos:v.fotos||[], por:(e&&e.por)||Store.uid||null});
+      var data=Object.assign({}, e||{}, {obraId:oid, data:v.data, clima:v.clima||'', efetivo:v.efetivo||[], chuvaImpediu:v.chuvaImpediu||'', equipe:v.equipe||'', atividades:v.atividades.trim(), obs:v.obs||'', fotos:v.fotos||[], por:(e&&e.por)||Store.uid||null});
       await Store.set('diarios', e?e.id:nid(), data);
+      await prazoSyncDiario(oid);
     }
   });
 }
@@ -646,7 +648,7 @@ var A={
   'pac-levar':function(d){ levarPendentes(d.oid); },
   'dia-novo':function(d){ diarioForm(d.oid); },
   'dia-editar':function(d){ var e=G('diarios',d.id); diarioForm(e.obraId,e); },
-  'dia-excluir':async function(d){ var ok=await confirmDlg('Excluir registro do dia?','<p>Fotos e texto deste dia serão removidos do diário.</p>','Excluir',true); if(ok) Store.del('diarios',d.id); },
+  'dia-excluir':async function(d){ var ok=await confirmDlg('Excluir registro do dia?','<p>Fotos e texto deste dia serão removidos do diário.</p>','Excluir',true); if(ok){ await prazoDiarioExcluir(d.id); await Store.del('diarios',d.id); } },
   'oc-nova':function(d){ ocForm(d.oid, null, d.n?Number(d.n):0); },
   'oc-abrir':function(d){ openOc(d.id); },
   'oc-editar':function(d){ var o=G('ocorrencias',d.id); ocForm(o.obraId,o); },

@@ -25,7 +25,8 @@ function pnFisico(oid){
 function pnProjecao(oid,fis,plan){
   var ats=byObra('atividades',oid); if(!ats.length) return null;
   var ini=ats.reduce(function(m,a){ return a.inicio<m?a.inicio:m; },ats[0].inicio), fim=ats.reduce(function(m,a){ return a.fim>m?a.fim:m; },ats[0].fim), hj=hoje();
-  var out={ini:ini, fim:fim, proj:fim, atraso:0};
+  var pend=prazoPendenteObra(oid); fim=addDays(fim,pend);
+  var out={ini:ini, fim:fim, proj:fim, atraso:0, pend:pend};
   if(plan>0&&fis!=null&&hj>ini&&hj<fim){ var spi=Math.max(0.5,Math.min(1.5,(fis||0.01)/plan)), dias=diffDays(ini,fim)+1; out.proj=addDays(ini,Math.ceil(dias/spi)-1); out.atraso=Math.max(0,diffDays(fim,out.proj)); out.spi=spi; }
   else if(hj>=fim&&fis!=null&&fis<100){ out.atraso=diffDays(fim,hj); out.proj=hj; }
   return out;
@@ -59,7 +60,7 @@ function tPainelObra(o){
     +kp('Entregas de compras atrasadas',A.entregas.length,A.pedir.length?plural(A.pedir.length,'pedido fora do prazo','pedidos fora do prazo'):'fornecedores em dia',A.entregas.length?'crit':(A.pedir.length?'warn':'ok'),b+'compras')
     +(ve?kp('Pagamentos vencidos',A.pagos.length,A.pagos.length?'conferir no financeiro':'em dia',A.pagos.length?'crit':'ok',b+'pagprazos'):'')
     +kp('Relatórios quinzenais em atraso',A.quinz.length,A.quinz.length?'engenharia deve emitir':'em dia',A.quinz.length?'warn':'ok',b+'quinzenal')
-    +kp('Término previsto',proj?fmt(proj.fim):'—',proj?(proj.atraso>0?'projeção: '+fmt(proj.proj)+' ('+plural(proj.atraso,'dia','dias')+' a mais)':'dentro do cronograma'):'monte o cronograma',proj&&proj.atraso>0?'crit':(proj?'ok':''),b+'cronograma')+'</div>';
+    +kp('Término previsto',proj?fmt(proj.fim):'—',proj?(proj.atraso>0?'projeção: '+fmt(proj.proj)+' ('+plural(proj.atraso,'dia','dias')+' a mais)':'dentro do cronograma')+(proj.pend?' · inclui +'+proj.pend+' dias de aditivo':''):'monte o cronograma',proj&&proj.atraso>0?'crit':(proj?'ok':''),b+'cronograma')+'</div>';
   /* curva S grande: a física (com orçamento) ou a do cronograma */
   var curva='';
   if(ats.length){
