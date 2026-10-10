@@ -1,7 +1,7 @@
 /* ================= PAINEL DE INDICADORES (tela principal) =================
    Perspectivas no estilo Balanced Scorecard: Prazo e execução · Qualidade · Financeiro · Prestadores · Cliente.
    Só usa o que o app já calcula (nenhuma regra nova). Valores em R$ só para quem pode vê-los. */
-function dashVeValores(){ var p=Store.papel; return !(p==='campo'||p==='cliente'); }
+function dashVeValores(){ return libValores(); }
 function dashMedia(l){ l=l.filter(function(x){ return x!=null&&!isNaN(x); }); return l.length?l.reduce(function(s,x){ return s+x; },0)/l.length:null; }
 function dashBrl(x){ if(x==null) return '—'; var a=Math.abs(x); return (x<0?'-':'')+'R$ '+(a>=1e6?(a/1e6).toFixed(1).replace('.',',')+' mi':(a>=1e3?(a/1e3).toFixed(a>=1e5?0:1).replace('.',',')+' mil':a.toFixed(0))); }
 function dashCor(v,bom,ruim,inverso){ if(v==null) return ''; if(inverso) return v<=bom?'ok':(v<=ruim?'warn':'crit'); return v>=bom?'ok':(v>=ruim?'warn':'crit'); }

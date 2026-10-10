@@ -35,15 +35,44 @@ function fluxoTab(o,t){ return o&&abaMapa()[t]?'#/obra/'+o.id+'/'+t:''; }
 function fluxoJornada(o){
   var staff=Store.papel!=='cliente';
   var J=[
-    ['Cadastro','Quem é o cliente, onde é a obra, o que foi contratado e para onde vão os pagamentos.',[['Cadastros (clientes, prestadores, fornecedores, usuários)',staff?'#/cadastros':''],['Cadastro da obra: cliente, endereço, serviços contratados, conta',fluxoTab(o,'cadastro')],['Arquivos recebidos dos outros aplicativos',fluxoTab(o,'cadastro')]]],
-    ['Planejamento','Orçamento, cronograma e programação de compras antes de abrir a frente.',[['Orçamento',fluxoTab(o,'orcamento')],['Cronograma e linha de base',fluxoTab(o,'cronograma')],['Físico-financeiro',fluxoTab(o,'fisfin')],['Contratos e frentes de prestadores',fluxoTab(o,'contratos')]]],
-    ['Execução e qualidade','As 22 etapas, cada uma liberada na vistoria, com apontamentos e conclusão.',[['Etapas, quadro de evolução e apontamentos',fluxoTab(o,'etapas')],['Diário de obra',fluxoTab(o,'diario')],['Solicitações e mudanças (protocolo)',fluxoTab(o,'solicitacoes')],['Ocorrências e fichas de verificação',fluxoTab(o,'ocorrencias')],['Semana e PPC',fluxoTab(o,'semana')]]],
+    ['Cadastro','Quem é o cliente, onde é a obra, o que foi contratado e para onde vão os pagamentos.',[['Cadastros (clientes, prestadores, fornecedores, usuários)',staff?'#/cadastros':''],['Liberações: quem vê, edita e aprova',Store.papel==='dono'?'#/liberacoes':''],['Acesso do cliente (o que ele vê)',fluxoTab(o,'cadastro')],['Cadastro da obra: cliente, endereço, serviços contratados, conta',fluxoTab(o,'cadastro')],['Arquivos recebidos dos outros aplicativos',fluxoTab(o,'cadastro')]]],
+    ['Planejamento','Orçamento, cronograma e programação de compras antes de abrir a frente.',[['Orçamento',fluxoTab(o,'orcamento')],['Cronograma, linha de base e motivos de atraso',fluxoTab(o,'cronograma')],['Físico-financeiro',fluxoTab(o,'fisfin')],['Contratos e frentes de prestadores',fluxoTab(o,'contratos')]]],
+    ['Execução e qualidade','As 22 etapas, cada uma liberada na vistoria, com apontamentos e conclusão.',[['Etapas, quadro de evolução e apontamentos',fluxoTab(o,'etapas')],['Diário de obra: chuva, equipe e empecilhos ajustam o prazo',fluxoTab(o,'diario')],['Solicitações e mudanças (protocolo)',fluxoTab(o,'solicitacoes')],['Ocorrências e fichas de verificação',fluxoTab(o,'ocorrencias')],['Semana e PPC',fluxoTab(o,'semana')]]],
     ['Suprimentos e financeiro','Compras, medições, pedidos de pagamento e fluxo do mês.',[['Compras e cotações',fluxoTab(o,'compras')],['Medição de serviços',fluxoTab(o,'medicao')],['Pedidos de pagamento e fora do escopo',fluxoTab(o,'pedidos')],['Financeiro e pagamentos e prazos',fluxoTab(o,'financeiro')],['Estoque e locações',fluxoTab(o,'estoque')]]],
     ['Gestão','Leitura rápida para decidir: atrasos, o que comprar, meta × evolução e relatórios ao cliente.',[['Visão geral (7, 15, 30, 90 e 120 dias)',staff?'#/visao':''],['Meta × evolução × pagamentos',fluxoTab(o,'metaevo')],['Relatório quinzenal ao cliente',fluxoTab(o,'quinzenal')],['Relatório mensal',fluxoTab(o,'relatorio')],['DRE e fluxo de caixa',staff?'#/dre':'']]],
     ['Entrega e pós-obra','Fim de obra alinhado às compras, entrega formal, garantias e visitas.',[['Encerramento e P0',fluxoTab(o,'encerramento')],['Pré-entrega',fluxoTab(o,'entrega')],['Garantias, chamados e satisfação',fluxoTab(o,'garantias')]]]
   ];
   return '<section class="card sec flx-jor"><div class="card-h"><div><h2>O que dá para fazer no aplicativo</h2><p class="muted small">Da esquerda para a direita, na ordem em que a obra acontece. Toque em um item para abrir.'+(o?'':' Escolha uma obra acima para ligar os atalhos.')+'</p></div></div><ol class="jor">'
     +J.map(function(f,i){ return '<li><span class="jor-n">'+(i+1)+'</span><h3>'+esc(f[0])+'</h3><p class="muted small">'+esc(f[1])+'</p><ul>'+f[2].map(function(x){ return '<li>'+(x[1]?'<a href="'+x[1]+'">'+esc(x[0])+'</a>':'<span class="muted">'+esc(x[0])+'</span>')+'</li>'; }).join('')+'</ul></li>'; }).join('')+'</ol></section>';
+}
+/* protocolo de mudanças: o caminho de um pedido (projeto, obra, aditivo, material ou escopo) e onde ele está agora */
+function fluxoProtocolo(o){
+  if(!o||Store.papel==='cliente') return '';
+  var l=solDaObra(o.id), n=function(f){ return l.filter(f).length; };
+  var quem=function(k){ var q=LIB_PAPEIS.filter(function(p){ return p[0]!=='cliente'&&libAprova(k,p[0]); }).map(function(p){ return p[1]; }); return q.length?q.join(', '):'—'; };
+  var ed=LIB_PAPEIS.filter(function(p){ return p[0]!=='cliente'&&libNivel('solicitacoes',p[0])==='e'; }).map(function(p){ return p[1]; }).join(', ');
+  var pas=[
+    ['1. Registrar','Qualquer pedido que muda o combinado entra no protocolo, com número, quem pediu, motivo e impacto em custo e prazo. Pode nascer no diário do dia.',n(function(s){ return s.status==='registrada'; }),'Quem edita: '+ed],
+    ['2. Analisar','A engenharia confere o impacto técnico (e consulta o projetista, se precisar) e preenche custo e prazo.',n(function(s){ return s.status==='em_analise'; }),'Quem edita: '+ed],
+    ['3. Decidir','A decisão do cliente é registrada pela equipe, com comprovante. O cliente não aprova pelo aplicativo.',n(function(s){ return s.status==='aguardando_decisao'; }),'Quem registra: '+quem('sol_decidir')],
+    ['4. Aditivo','Aprovada com variação de custo, gera o aditivo; só o aditivo assinado altera o orçamento revisado. Compra e pagamento fora do escopo ficam travados até lá.',n(function(s){ return s.status==='aprovada'&&solCusto(s)&&!(solAditivo(s)&&solAditivo(s).status==='assinado'); }),'Quem assina: '+quem('adt_assinar')],
+    ['5. Prazo','Dias aprovados entram sozinhos no cronograma e no término previsto, sem contar duas vezes.',n(function(s){ return (s.status==='aprovada'||s.status==='concluida')&&s.impactoPrazoDias>0&&!prazoAplicado(s); }),'Automático'],
+    ['6. Concluir','Só conclui com aditivo assinado e prazo aplicado: nada diverge entre protocolo, orçamento e cronograma.',n(function(s){ return s.status==='concluida'; }),'Concluídas']
+  ];
+  var corpo='<ol class="jor">'+pas.map(function(p){ return '<li><h3>'+esc(p[0])+'</h3><p class="muted small">'+esc(p[1])+'</p><p class="small"><span class="chip '+(p[2]?'warn':'')+'">'+p[2]+' nesta obra</span></p><p class="tiny muted">'+esc(p[3])+'</p></li>'; }).join('')+'</ol>';
+  var r=diarioPrazo(o.id), regras=['Chuva que impediu o serviço: o dia perdido empurra o cronograma e o término previsto sozinho ('+plural(r.chuvaPerdidos,'dia','dias')+' até agora).','Equipe faltante: conta como atraso e gera alerta, sem estender o prazo ('+plural(r.equipeDias,'dia','dias')+').','Empecilho do diário (material, projeto, decisão do cliente…): aparece no cronograma com o motivo; o setor de obras decide ajustar as datas.','Aditivo assinado ou solicitação aprovada sem custo: o prazo entra sozinho no cronograma.'];
+  return '<section class="card sec"><div class="card-h"><div><h2>Protocolo de mudanças e prazo</h2><p class="muted small">Onde cada pedido está nesta obra e quem pode fazer cada passo, conforme as liberações. <a href="'+(fluxoTab(o,'solicitacoes')||'#/painel')+'">Abrir solicitações</a></p></div></div><div class="pad">'+corpo+'<h4 class="small muted" style="margin:12px 0 6px">Regras automáticas de prazo</h4><ul class="lst">'+regras.map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('')+'</ul></div></section>';
+}
+/* quem vê, edita e aprova cada área: leitura da matriz de liberações */
+function fluxoSetores(){
+  if(Store.papel==='cliente'||Store.papel==='campo') return '';
+  var pap=LIB_PAPEIS.filter(function(p){ return p[0]!=='dono'; }), sim={e:'✎ edita',v:'👁 vê',n:'—'};
+  var corpo=LIB_SETORES.map(function(nome,si){
+    var l=LIB_AREAS.filter(function(x){ return x[2]===si; }); if(!l.length) return '';
+    return '<tr class="sub"><th colspan="'+(pap.length+1)+'">'+esc(nome)+'</th></tr>'+l.map(function(x){ return '<tr><td>'+esc(x[1])+'</td>'+pap.map(function(p){ var v=libCfg(p[0]).a[x[0]]; return '<td class="small'+(v==='n'?' muted':'')+'">'+sim[v]+'</td>'; }).join('')+'</tr>'; }).join('');
+  }).join('');
+  var ap=LIB_APROV.map(function(a){ return '<tr><td>Aprovar: '+esc(a[1])+'</td><td colspan="'+pap.length+'" class="small">'+esc(LIB_PAPEIS.filter(function(p){ return libAprova(a[0],p[0]); }).map(function(p){ return p[1]; }).join(', '))+'</td></tr>'; }).join('');
+  return '<section class="card sec"><div class="card-h"><div><h2>Quem faz o quê, por setor</h2><p class="muted small">O administrador sempre pode tudo. O cliente só visualiza o que a obra liberar e não aprova nada.'+(Store.papel==='dono'?' <a href="#/liberacoes">Editar liberações</a>':'')+'</p></div></div><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Área</th>'+pap.map(function(p){ return '<th>'+esc(p[1])+'</th>'; }).join('')+'</tr></thead><tbody>'+corpo+'<tr class="sub"><th colspan="'+(pap.length+1)+'">Aprovações</th></tr>'+ap+'</tbody></table></div></section>';
 }
 function fluxoServicos(o){
   if(!o||Store.papel==='cliente'||Store.papel==='campo') return '';
@@ -65,7 +94,7 @@ function vFluxo(){
     +obras.map(function(x){ return '<option value="'+esc(x.id)+'"'+(o&&o.id===x.id?' selected':'')+'>'+esc(x.nome)+'</option>'; }).join('')+'</select></div>';
   var leg=o?'<div class="flx-leg" aria-label="Legenda">'+STATUS_ORDER.map(function(s){ return '<span><i class="flx-dot '+s+'"></i>'+STATUS[s]+'</span>'; }).join('')+'<span><i class="flx-dot crit"></i>Ocorrência crítica aberta</span></div>':'<p class="muted small">Escolha uma obra para ver em que etapa ela está.</p>';
   var h='<div class="wrap"><div class="sec-h"><div><h1>Fluxo geral</h1><p class="muted" style="margin-top:4px">O caminho de uma obra, da pré-obra ao pós-obra. Cada etapa só é liberada na vistoria (losango).</p></div>'+seletor+'</div>'+leg;
-  h+=fluxoJornada(o)+fluxoServicos(o)+fluxoCompras(o)+fluxoRitos(o);
+  h+=fluxoJornada(o)+fluxoServicos(o)+fluxoProtocolo(o)+fluxoCompras(o)+fluxoSetores()+fluxoRitos(o);
   h+='<div class="flx"><div class="flx-fim ini"><strong>Início</strong><span>A obra abre com terreno regularizado, projetos, orçamento, contrato e licenças</span></div>';
   FASES.forEach(function(f,fi){
     h+='<section class="flx-fase" aria-label="Fase '+(fi+1)+': '+esc(f.nome)+'"><h2><span class="flx-num">'+(fi+1)+'</span>'+esc(f.nome)+'</h2><div class="flx-row">';

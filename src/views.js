@@ -14,6 +14,7 @@ function parseRoute(){
   if(p[0]==='compras') return {view:'compras'};
   if(p[0]==='dre') return {view:'dre'};
   if(p[0]==='fluxo') return {view:'fluxo'};
+  if(p[0]==='liberacoes') return {view:'liberacoes'};
   if(p[0]==='visao') return {view:'visao'};
   if(p[0]==='cadastros') return {view:'cadastros'};
   if(p[0]==='nuvem') return {view:'nuvem'};
@@ -26,7 +27,7 @@ function topbar(r){
   var cur=function(v){ return r.view===v?' aria-current="page"':''; };
   var obraAtiva=(r.view==='obra'||r.view==='etapa'), cli=Store.papel==='cliente';
   var nav=cli?'<a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Minha obra</a>'
-    :'<span class="nav-sec">Gestão</span><a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a>'+(Store.papel==='campo'?'':'<a href="#/cadastros"'+cur('cadastros')+'>Cadastros</a>')+'<span class="nav-sec">Operação</span><a href="#/compras"'+cur('compras')+'>Compras</a><a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><span class="nav-sec">Relatórios</span><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a><span class="nav-sec">Sistema</span>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>';
+    :'<span class="nav-sec">Gestão</span><a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a>'+(Store.papel==='campo'?'':'<a href="#/cadastros"'+cur('cadastros')+'>Cadastros</a>')+'<span class="nav-sec">Operação</span><a href="#/compras"'+cur('compras')+'>Compras</a><a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><span class="nav-sec">Relatórios</span><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a><span class="nav-sec">Sistema</span>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>'; if(!cli) nav=libFiltraNav(nav);
   return '<header class="top"><div class="top-in"><a class="brand" href="#/painel" aria-label="Cariati Obras, início"><img class="brand-logo" src="'+LOGO+'" alt="Cariati Arquitetura &amp; Gestão" width="56" height="44"><span class="brand-t">Controle de obras</span></a>'
     +(cli?'':'<button type="button" class="btn primary side-new" data-act="obra-nova" data-write aria-label="Nova obra">+ <b>Nova obra</b></button>')
     +'<nav class="nav" aria-label="Principal">'+nav+'</nav>'+(cli?'':sideFav())
@@ -306,8 +307,8 @@ function render(){
     app.innerHTML=topbar(r)+banners()+(r.view==='nuvem'?vNuvem():(r.view==='avisos'?vAvisos():(r.view==='pendencias'?vPendencias():vHistorico())));
     if(key!==lastKey) window.scrollTo(0,0); lastKey=key; uiPos(); return;
   }
-  var body=r.view==='obra'?vObra(r):(r.view==='etapa'?vEtapa(r):(r.view==='prestadores'?vPrest():(r.view==='agenda'?vAgenda():(r.view==='fornecedores'?vForn():(r.view==='compras'?vCompras():(r.view==='dre'?vDRE():(r.view==='fluxo'?vFluxo():(r.view==='visao'?vVisao():(r.view==='cadastros'?vCadastros():vPainel())))))))));
-  document.body.classList.toggle('ro', !Store.writable);
+  var bloq=libBloqueio(r), body=bloq||(r.view==='liberacoes'?vLiberacoes():r.view==='obra'?vObra(r):(r.view==='etapa'?vEtapa(r):(r.view==='prestadores'?vPrest():(r.view==='agenda'?vAgenda():(r.view==='fornecedores'?vForn():(r.view==='compras'?vCompras():(r.view==='dre'?vDRE():(r.view==='fluxo'?vFluxo():(r.view==='visao'?vVisao():(r.view==='cadastros'?vCadastros():vPainel()))))))))));
+  document.body.classList.toggle('ro', !Store.writable||libSoVer(r));
   app.innerHTML=topbar(r)+banners()+body;
   if(key===lastKey){ window.scrollTo(0,y); var g2=document.querySelector('.gantt-scroll'); if(g2) g2.scrollLeft=ui.ganttScroll; } else { window.scrollTo(0,0); ui.ganttScroll=0; }
   lastKey=key; uiPos();
@@ -678,6 +679,7 @@ document.addEventListener('click', function(e){
   if(e.target.closest('[data-close]')){ closeDlg(); return; }
   var el=e.target.closest('[data-act]'); if(!el) return;
   if(offBloqueia(el.dataset.act)){ e.preventDefault(); return; }
+  var lb=libAcaoBloqueada(el.dataset.act,el.dataset); if(lb){ e.preventDefault(); e.stopImmediatePropagation(); toast(lb, true); return; }
   var f=A[el.dataset.act]||A2[el.dataset.act]||A3[el.dataset.act]||A4[el.dataset.act]||A5[el.dataset.act]||A7[el.dataset.act]||AG[el.dataset.act]||AOff[el.dataset.act]||ANuvem[el.dataset.act]; if(f){ e.preventDefault(); f(el.dataset, el); }
 });
 document.addEventListener('change', function(e){

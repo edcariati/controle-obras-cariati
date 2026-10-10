@@ -34,15 +34,17 @@ async function prazoSyncDiario(oid){
   if(!mud.length) return;
   var ats=byObra('atividades',oid); if(!ats.length) return;
   try{
-    var tasks=[]; ats.forEach(function(a){ var av=a.avanco||0; if(av>=100||!delta) return; tasks.push(Store.set('atividades',a.id,Object.assign({},a,av>0?{fim:addDays(a.fim,delta)}:{inicio:addDays(a.inicio,delta),fim:addDays(a.fim,delta)}))); });
-    mud.forEach(function(m){ tasks.push(Store.set('diarios',m[0].id,Object.assign({},m[0],{prazoAplicado:m[1]}))); });
+    var tasks=[]; libSistema(function(){
+      ats.forEach(function(a){ var av=a.avanco||0; if(av>=100||!delta) return; tasks.push(Store.set('atividades',a.id,Object.assign({},a,av>0?{fim:addDays(a.fim,delta)}:{inicio:addDays(a.inicio,delta),fim:addDays(a.fim,delta)}))); });
+      mud.forEach(function(m){ tasks.push(Store.set('diarios',m[0].id,Object.assign({},m[0],{prazoAplicado:m[1]}))); });
+    });
     await Promise.all(tasks);
     if(delta) toast((delta>0?'Chuva: +':'Ajuste: ')+delta+' '+(Math.abs(delta)===1?'dia':'dias')+' no cronograma, automático.');
   }catch(err){ /* sem permissão para mexer no cronograma: o prazo segue contado como pendente e é aplicado depois */ }
 }
 async function prazoDiarioExcluir(id){
   var e=G('diarios',id); if(!e) return; var ap=e.prazoAplicado||0;
-  if(ap){ try{ await Promise.all(byObra('atividades',e.obraId).filter(function(a){ return (a.avanco||0)<100; }).map(function(a){ return Store.set('atividades',a.id,Object.assign({},a,(a.avanco||0)>0?{fim:addDays(a.fim,-ap)}:{inicio:addDays(a.inicio,-ap),fim:addDays(a.fim,-ap)})); })); }catch(err){} }
+  if(ap){ try{ await Promise.all(libSistema(function(){ return byObra('atividades',e.obraId).filter(function(a){ return (a.avanco||0)<100; }).map(function(a){ return Store.set('atividades',a.id,Object.assign({},a,(a.avanco||0)>0?{fim:addDays(a.fim,-ap)}:{inicio:addDays(a.inicio,-ap),fim:addDays(a.fim,-ap)})); }); })); }catch(err){} }
 }
 /* ---- integração: aditivo, prazo no cronograma, compras e pagamentos ---- */
 function prazoFonte(s){ var ad=solAditivo(s); return ad?{col:'aditivos',rec:ad}:{col:'solicitacoes',rec:s}; }
@@ -67,19 +69,21 @@ function prazoAplicar(col,id,auto){
   var alvo=et?ats.filter(function(a){ return a.etapa===et; }):[], depois=et?ats.filter(function(a){ return a.etapa>et; }):[];
   if(!alvo.length&&!depois.length){ var ult=ats.slice().sort(function(a,b){ return a.fim<b.fim?1:-1; })[0]; alvo=[ult]; }
   var tasks=[];
-  alvo.forEach(function(a){ tasks.push(Store.set('atividades',a.id,Object.assign({},a,{fim:addDays(a.fim,dias)}))); });
-  depois.forEach(function(a){ tasks.push(Store.set('atividades',a.id,Object.assign({},a,{inicio:addDays(a.inicio,dias),fim:addDays(a.fim,dias)}))); });
-  var upd=Object.assign({},r,{prazoAplicadoEm:hoje(), prazoEtapa:et});
-  if(col==='solicitacoes') upd.hist=solHist(r,'prazo_aplicado',dias+' dias');
-  tasks.push(Store.set(col,id,upd));
+  libSistema(function(){
+    alvo.forEach(function(a){ tasks.push(Store.set('atividades',a.id,Object.assign({},a,{fim:addDays(a.fim,dias)}))); });
+    depois.forEach(function(a){ tasks.push(Store.set('atividades',a.id,Object.assign({},a,{inicio:addDays(a.inicio,dias),fim:addDays(a.fim,dias)}))); });
+    var upd=Object.assign({},r,{prazoAplicadoEm:hoje(), prazoEtapa:et});
+    if(col==='solicitacoes') upd.hist=solHist(r,'prazo_aplicado',dias+' dias');
+    tasks.push(Store.set(col,id,upd));
+  });
   return Promise.all(tasks).then(function(){ toast('Prazo atualizado automaticamente: +'+dias+' dias no cronograma'+(et?' a partir da etapa '+et+'.':'.')); });
 }
 /* aditivo assinado ou recusado atualiza a solicitação que o originou, para os dois nunca divergirem */
 function solSyncAditivo(a,acao,motivo){
   if(!a||!a.origem||a.origem.col!=='solicitacoes') return Promise.resolve();
   var s=G('solicitacoes',a.origem.id); if(!s) return Promise.resolve();
-  if(acao==='assinado') return Store.set('solicitacoes',s.id,Object.assign({},s,{hist:solHist(s,'aditivo_assinado','aditivo nº '+a.numero)}));
-  if(acao==='recusado') return Store.set('solicitacoes',s.id,Object.assign({},s,{status:'recusada', decisao:Object.assign({},s.decisao||{data:hoje(),quem:'Cliente',anexos:[]},{ref:((s.decisao&&s.decisao.ref)||'')+' | Aditivo nº '+a.numero+' recusado pelo cliente: '+(motivo||'')}), hist:solHist(s,'recusada','aditivo recusado')}));
+  if(acao==='assinado') return libSistema(function(){ return Store.set('solicitacoes',s.id,Object.assign({},s,{hist:solHist(s,'aditivo_assinado','aditivo nº '+a.numero)})); });
+  if(acao==='recusado') return libSistema(function(){ return Store.set('solicitacoes',s.id,Object.assign({},s,{status:'recusada', decisao:Object.assign({},s.decisao||{data:hoje(),quem:'Cliente',anexos:[]},{ref:((s.decisao&&s.decisao.ref)||'')+' | Aditivo nº '+a.numero+' recusado pelo cliente: '+(motivo||'')}), hist:solHist(s,'recusada','aditivo recusado')})); });
   return Promise.resolve();
 }
 function solDivergencias(s){

@@ -14,7 +14,7 @@ var NAV_GRUPOS=[
 var NAV_ROTULO={painel:'Painel de evolução', resumo:'Resumo', etapas:'Etapas', cronograma:'Cronograma', balanco:'Balanço', semana:'Semana e PPC', diario:'Diário', solicitacoes:'Solicitações', ocorrencias:'Ocorrências', entrega:'Pré-entrega', projeto:'RFI e materiais', compras:'Compras', estoque:'Estoque', locacoes:'Locações', contratos:'Contratos e frentes', avaliacoes:'Avaliações', orcamento:'Orçamento', medicao:'Medição', financeiro:'Financeiro', fisfin:'Físico-financeiro', dre:'DRE', agenda:'Agenda', reunioes:'Reuniões', documentos:'Documentos', relatorio:'Relatório mensal', cadastro:'Cadastro', quinzenal:'Relatório quinzenal', pedidos:'Pedidos de pagamento', pagprazos:'Pagamentos e prazos', metaevo:'Meta × evolução', encerramento:'Encerramento e P0', garantias:'Garantias', chamados:'Chamados', visitas:'Visitas', satisfacao:'Satisfação'};
 function abaMapa(){
   var m=abaMapaTodas();
-  if(Store.papel==='campo'){ ['pedidos','pagprazos','metaevo','cadastro','painel'].forEach(function(k){ delete m[k]; }); }
+  Object.keys(m).forEach(function(k){ if(!libVe(k)) delete m[k]; });
   if(Store.papel!=='cliente') return m;
   var r=parseRoute(), o=r&&r.oid?G('obras',r.oid):null, ok={}; clienteAbas(o).forEach(function(k){ if(m[k]) ok[k]=m[k]; }); return ok;
 }

@@ -173,7 +173,7 @@ var SignedUrls={ map:{}, fila:{}, t:null,
 function blobUrl(id){ id=String(id||''); if(id.indexOf('off:')===0) return Off.fotoUrl(id); if(id.indexOf('sb:')===0) return Supa.v2()?SignedUrls.get(id.slice(3)):Supa.publicUrl(id.slice(3)); return '/_blob/'+id; }
 
 /* ---------- armazenamento ---------- */
-var COLS=['obras','etapas','atividades','pacotes','diarios','fichas','ocorrencias','prestadores','eventos','atas','acoes','docsLegais','docsPrest','rfis','materiais','locs','servicos','treinamentos','fornecedores','compras','movEstoque','locacoes','contratosPrest','termos','danos','orcamentos','orcItens','aditivos','medicoes','contasPagar','aportes','empresas','contratosCliente','lancamentos','relatorios','avaliacoes','licoes','config','garantias','chamadosGarantia','chamadosCustos','visitasPosObra','pesquisasSatisfacao','pedidosPag','clientes','parceiros','cadastros','arquivosObra','catalogoServicos','solicitacoes','solicitacoesImpacto'];
+var COLS=['obras','etapas','atividades','pacotes','diarios','fichas','ocorrencias','prestadores','eventos','atas','acoes','docsLegais','docsPrest','rfis','materiais','locs','servicos','treinamentos','fornecedores','compras','movEstoque','locacoes','contratosPrest','termos','danos','orcamentos','orcItens','aditivos','medicoes','contasPagar','aportes','empresas','contratosCliente','lancamentos','relatorios','avaliacoes','licoes','config','garantias','chamadosGarantia','chamadosCustos','visitasPosObra','pesquisasSatisfacao','pedidosPag','clientes','parceiros','cadastros','arquivosObra','catalogoServicos','solicitacoes','solicitacoesImpacto','liberacoes'];
 var Store={
   mode:'boot', db:null, data:{}, uid:null, writable:true, user:null, q:new Map(), unsubs:[],
   init:async function(){
@@ -201,7 +201,7 @@ var Store={
       if(st==='ok'){
         this.db=Supa.adapter(); this.mode='db'; this.backend='supabase';
         this.uid=Supa.uid(); this.user=Supa.userShim();
-        if(Supa.v2()){ this.papel=Supa.papel; this.writable=['dono','gestor','financeiro','campo'].indexOf(Supa.papel)>=0; }
+        if(Supa.v2()){ this.papel=Supa.papel; this.writable=['dono','gestor','financeiro','compras','engenharia','campo'].indexOf(Supa.papel)>=0; }
         await this.subscribeSupa();
         if(Supa.v2() && typeof Off!=='undefined' && await Off.iniciar(Supa.uid())){ await Off.sincronizar(); await Off.salvarCache(); }
         if(typeof Notif!=='undefined') Notif.iniciar();
@@ -220,7 +220,7 @@ var Store={
     if(!em||Date.now()-new Date(em).getTime()>OFF_CACHE_DIAS_MS){ this.avisoCacheVelho=true; return false; }
     Supa.cfg=sc; Supa.papel=ses.papel; Supa.nome=ses.nome; Supa.session={user:{id:ses.uid, email:ses.email, user_metadata:{}}};
     Off.offlineBoot=true; this.backend='supabase'; this.mode='db'; this.uid=ses.uid; this.papel=ses.papel;
-    this.writable=['dono','gestor','financeiro','campo'].indexOf(ses.papel)>=0; this.user=Supa.userShim();
+    this.writable=['dono','gestor','financeiro','compras','engenharia','campo'].indexOf(ses.papel)>=0; this.user=Supa.userShim();
     return true;
   },
   subscribeSupaV2:async function(){
@@ -312,6 +312,7 @@ var Store={
   set:function(c,id,data){
     var self=this;
     if(!this.writable && !this.cliPode(c)){ toast('Seu acesso é somente leitura.', true); return Promise.resolve(); }
+    if(c==='liberacoes' ? libPapel()!=='dono' : (!this.cliPode(c) && !libPodeCol(c))){ toast('Seu papel não pode alterar isto. Peça ao administrador.', true); return Promise.resolve(); }
     var rec=clone(data); delete rec.id;
     var antes=this.data[c].get(id); antes=antes?clone(antes):antes;
     if(this.mode==='db' && typeof Off!=='undefined' && this.backend==='supabase'){
@@ -332,6 +333,7 @@ var Store={
   del:function(c,id){
     var self=this;
     if(!this.writable){ toast('Seu acesso é somente leitura.', true); return Promise.resolve(); }
+    if(!libPodeCol(c)){ toast('Seu papel não pode excluir isto. Peça ao administrador.', true); return Promise.resolve(); }
     if(typeof Off!=='undefined' && this.backend==='supabase' && Off.ativo() && Off.semRede()){ toast('Sem internet: excluir precisa de conexão, porque a exclusão é conferida pelo servidor. Nada foi alterado.', true); return Promise.resolve(false); }
     this.data[c].delete(id); scheduleRender();
     if(this.mode==='db'){ return this.enqueue(c+'/'+id, function(){ return self.db.doc(c+'/'+id).delete(); }).catch(function(e){ self.fail(e); }); }

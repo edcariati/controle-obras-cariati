@@ -19,8 +19,8 @@ function cronoDeslocarEtapa(oid,et,dias){
   var ats=byObra('atividades',oid); if(!ats.length) return Promise.resolve(false);
   var alvo=et?ats.filter(function(a){ return a.etapa===et; }):[], depois=et?ats.filter(function(a){ return a.etapa>et; }):[];
   if(!alvo.length&&!depois.length) alvo=[ats.slice().sort(function(a,b){ return a.fim<b.fim?1:-1; })[0]];
-  var t=[]; alvo.forEach(function(a){ t.push(Store.set('atividades',a.id,Object.assign({},a,{fim:addDays(a.fim,dias)}))); });
-  depois.forEach(function(a){ t.push(Store.set('atividades',a.id,Object.assign({},a,{inicio:addDays(a.inicio,dias),fim:addDays(a.fim,dias)}))); });
+  var t=[]; libSistema(function(){ alvo.forEach(function(a){ t.push(Store.set('atividades',a.id,Object.assign({},a,{fim:addDays(a.fim,dias)}))); });
+  depois.forEach(function(a){ t.push(Store.set('atividades',a.id,Object.assign({},a,{inicio:addDays(a.inicio,dias),fim:addDays(a.fim,dias)}))); }); });
   return Promise.all(t).then(function(){ return true; });
 }
 async function impAplicar(id){

@@ -165,3 +165,51 @@ test('acesso do cliente · no portal ele vê só as áreas liberadas', async () 
   e = await mk({ clienteVe: [] }); assert.match(e.app(), /Nada liberado ainda/);
   assert.equal(e.erros.length, 0);
 });
+
+const comPapel = (papel, matriz) => abrir({ supa: { perfil: { papel, nome: 'Teste' }, seed: Object.assign({ obras: { o1: { obra_id: 'o1', dados: { nome: 'Casa', modalidade: 'Administração de Obra' } } } }, matriz ? { liberacoes: { matriz: { obra_id: null, dados: { papeis: matriz } } } } : {}) }, hash: '#/painel' });
+
+test('liberações · o administrador vê a matriz e a altera; a mudança é gravada', async () => {
+  const e = await abrir({ seed: semente(), hash: '#/liberacoes' });
+  assert.match(e.app(), /Liberações/); assert.match(e.app(), /O que este papel pode aprovar/); assert.match(e.app(), /Pode ver valores em R\$/);
+  await e.click('[data-act="lib-papel"][data-p="compras"]');
+  const sel = e.doc.querySelector('[data-chg="lib-niv"][data-k="dre"]'); assert.equal(sel.value, 'n');
+  sel.value = 'v'; sel.dispatchEvent(new e.win.Event('change', { bubbles: true })); await e.tick(100);
+  const m = e.linhas('liberacoes')[0]; assert.equal(m.papeis.compras.a.dre, 'v');
+  const ap = e.doc.querySelector('[data-chg="lib-ap"][data-k="med_aprovar"]'); ap.checked = true; ap.dispatchEvent(new e.win.Event('change', { bubbles: true })); await e.tick(100);
+  assert.ok(e.linhas('liberacoes')[0].papeis.compras.ap.includes('med_aprovar'));
+  assert.equal(e.x.libNivel('dre', 'compras'), 'v'); assert.equal(e.x.libAprova('med_aprovar', 'compras'), true);
+  await e.click('[data-act="lib-papel"][data-p="cliente"]'); assert.match(e.app(), /O cliente só visualiza e não aprova nada/);
+  assert.equal(e.doc.querySelector('[data-chg="lib-ap"]:not([disabled])'), null); assert.equal(e.doc.querySelector('[data-chg="lib-niv"][data-k="diario"] option[value="e"]'), null);
+  assert.equal(e.erros.length, 0);
+});
+
+test('liberações · padrões por papel e aprovações não vazam', async () => {
+  const e = await abrir({ seed: semente(), hash: '#/painel' }), x = e.x;
+  assert.equal(x.libNivel('medicao', 'financeiro'), 'e'); assert.equal(x.libNivel('dre', 'compras'), 'n'); assert.equal(x.libNivel('compras', 'compras'), 'e'); assert.equal(x.libNivel('diario', 'campo'), 'e'); assert.equal(x.libNivel('financeiro', 'campo'), 'n');
+  assert.equal(x.libAprova('med_aprovar', 'financeiro'), true); assert.equal(x.libAprova('med_aprovar', 'compras'), false); assert.equal(x.libAprova('adt_assinar', 'cliente'), false);
+  assert.equal(x.libAprova('obra_encerrar', 'gestor'), false); assert.equal(x.libAprova('obra_encerrar', 'dono'), true);
+  assert.equal(x.libCfg('campo').val, false); assert.equal(x.libCfg('cliente').val, false); assert.equal(x.libCfg('financeiro').val, true);
+  const g = x.libGrupos('financeiro'); assert.equal(g.financeiro, 'E'); assert.equal(g.obras, 'L'); assert.equal(x.libGrupos('compras').suprimentos, 'E'); assert.equal(x.libGrupos('compras').dre, 'N');
+  const ids = x.LIB_AREAS.map((a) => a[0]); assert.equal(new Set(ids).size, ids.length);
+});
+
+test('liberações · papel sem acesso não vê o menu nem a página, e não aprova', async () => {
+  const e = await comPapel('compras');
+  assert.doesNotMatch(e.doc.querySelector('.top').textContent, /DRE|Liberações/); assert.match(e.doc.querySelector('.top').textContent, /Compras/);
+  await e.go('#/dre'); assert.match(e.app(), /Sem acesso a esta área/);
+  await e.go('#/liberacoes'); assert.match(e.app(), /Só o administrador altera as liberações/);
+  assert.equal(e.x.libPodeCol('compras'), true); assert.equal(e.x.libPodeCol('medicoes'), false);
+  assert.ok(e.x.libAcaoBloqueada('med-aprovar', {})); assert.equal(e.x.libAcaoBloqueada('compra-avancar', {}), '');
+  const eng = await comPapel('engenharia', { engenharia: { a: {}, ap: ['med_aprovar'], val: true } });
+  assert.equal(eng.x.libAcaoBloqueada('med-aprovar', {}), ''); assert.ok(eng.x.libAcaoBloqueada('adt-assinar', {}));
+  const cli = await comPapel('cliente'); assert.match(cli.x.libAcaoBloqueada('sol-decidir', {}), /cliente não aprova nada/);
+});
+
+test('fluxo · mostra o protocolo de mudanças com o andamento da obra e a matriz de quem faz o quê', async () => {
+  const e = await abrir({ seed: semente(), hash: '#/obra/o1/solicitacoes' });
+  await aprovada(e, { impactoPrazoDias: '0' });
+  await e.go('#/fluxo/o1');
+  assert.match(e.app(), /Protocolo de mudanças e prazo/); assert.match(e.app(), /1 nesta obra/); assert.match(e.app(), /Regras automáticas de prazo/);
+  assert.match(e.app(), /Quem faz o quê, por setor/); assert.match(e.app(), /Aprovar: Aprovar medição/); assert.match(e.app(), /Liberações: quem vê, edita e aprova/);
+  assert.equal(e.erros.length, 0);
+});

@@ -1271,7 +1271,7 @@ var SignedUrls={ map:{}, fila:{}, t:null,
 function blobUrl(id){ id=String(id||''); if(id.indexOf('off:')===0) return Off.fotoUrl(id); if(id.indexOf('sb:')===0) return Supa.v2()?SignedUrls.get(id.slice(3)):Supa.publicUrl(id.slice(3)); return '/_blob/'+id; }
 
 /* ---------- armazenamento ---------- */
-var COLS=['obras','etapas','atividades','pacotes','diarios','fichas','ocorrencias','prestadores','eventos','atas','acoes','docsLegais','docsPrest','rfis','materiais','locs','servicos','treinamentos','fornecedores','compras','movEstoque','locacoes','contratosPrest','termos','danos','orcamentos','orcItens','aditivos','medicoes','contasPagar','aportes','empresas','contratosCliente','lancamentos','relatorios','avaliacoes','licoes','config','garantias','chamadosGarantia','chamadosCustos','visitasPosObra','pesquisasSatisfacao','pedidosPag','clientes','parceiros','cadastros','arquivosObra','catalogoServicos','solicitacoes','solicitacoesImpacto'];
+var COLS=['obras','etapas','atividades','pacotes','diarios','fichas','ocorrencias','prestadores','eventos','atas','acoes','docsLegais','docsPrest','rfis','materiais','locs','servicos','treinamentos','fornecedores','compras','movEstoque','locacoes','contratosPrest','termos','danos','orcamentos','orcItens','aditivos','medicoes','contasPagar','aportes','empresas','contratosCliente','lancamentos','relatorios','avaliacoes','licoes','config','garantias','chamadosGarantia','chamadosCustos','visitasPosObra','pesquisasSatisfacao','pedidosPag','clientes','parceiros','cadastros','arquivosObra','catalogoServicos','solicitacoes','solicitacoesImpacto','liberacoes'];
 var Store={
   mode:'boot', db:null, data:{}, uid:null, writable:true, user:null, q:new Map(), unsubs:[],
   init:async function(){
@@ -1299,7 +1299,7 @@ var Store={
       if(st==='ok'){
         this.db=Supa.adapter(); this.mode='db'; this.backend='supabase';
         this.uid=Supa.uid(); this.user=Supa.userShim();
-        if(Supa.v2()){ this.papel=Supa.papel; this.writable=['dono','gestor','financeiro','campo'].indexOf(Supa.papel)>=0; }
+        if(Supa.v2()){ this.papel=Supa.papel; this.writable=['dono','gestor','financeiro','compras','engenharia','campo'].indexOf(Supa.papel)>=0; }
         await this.subscribeSupa();
         if(Supa.v2() && typeof Off!=='undefined' && await Off.iniciar(Supa.uid())){ await Off.sincronizar(); await Off.salvarCache(); }
         if(typeof Notif!=='undefined') Notif.iniciar();
@@ -1318,7 +1318,7 @@ var Store={
     if(!em||Date.now()-new Date(em).getTime()>OFF_CACHE_DIAS_MS){ this.avisoCacheVelho=true; return false; }
     Supa.cfg=sc; Supa.papel=ses.papel; Supa.nome=ses.nome; Supa.session={user:{id:ses.uid, email:ses.email, user_metadata:{}}};
     Off.offlineBoot=true; this.backend='supabase'; this.mode='db'; this.uid=ses.uid; this.papel=ses.papel;
-    this.writable=['dono','gestor','financeiro','campo'].indexOf(ses.papel)>=0; this.user=Supa.userShim();
+    this.writable=['dono','gestor','financeiro','compras','engenharia','campo'].indexOf(ses.papel)>=0; this.user=Supa.userShim();
     return true;
   },
   subscribeSupaV2:async function(){
@@ -1410,6 +1410,7 @@ var Store={
   set:function(c,id,data){
     var self=this;
     if(!this.writable && !this.cliPode(c)){ toast('Seu acesso é somente leitura.', true); return Promise.resolve(); }
+    if(c==='liberacoes' ? libPapel()!=='dono' : (!this.cliPode(c) && !libPodeCol(c))){ toast('Seu papel não pode alterar isto. Peça ao administrador.', true); return Promise.resolve(); }
     var rec=clone(data); delete rec.id;
     var antes=this.data[c].get(id); antes=antes?clone(antes):antes;
     if(this.mode==='db' && typeof Off!=='undefined' && this.backend==='supabase'){
@@ -1430,6 +1431,7 @@ var Store={
   del:function(c,id){
     var self=this;
     if(!this.writable){ toast('Seu acesso é somente leitura.', true); return Promise.resolve(); }
+    if(!libPodeCol(c)){ toast('Seu papel não pode excluir isto. Peça ao administrador.', true); return Promise.resolve(); }
     if(typeof Off!=='undefined' && this.backend==='supabase' && Off.ativo() && Off.semRede()){ toast('Sem internet: excluir precisa de conexão, porque a exclusão é conferida pelo servidor. Nada foi alterado.', true); return Promise.resolve(false); }
     this.data[c].delete(id); scheduleRender();
     if(this.mode==='db'){ return this.enqueue(c+'/'+id, function(){ return self.db.doc(c+'/'+id).delete(); }).catch(function(e){ self.fail(e); }); }
@@ -4028,7 +4030,7 @@ var NAV_GRUPOS=[
 var NAV_ROTULO={painel:'Painel de evolução', resumo:'Resumo', etapas:'Etapas', cronograma:'Cronograma', balanco:'Balanço', semana:'Semana e PPC', diario:'Diário', solicitacoes:'Solicitações', ocorrencias:'Ocorrências', entrega:'Pré-entrega', projeto:'RFI e materiais', compras:'Compras', estoque:'Estoque', locacoes:'Locações', contratos:'Contratos e frentes', avaliacoes:'Avaliações', orcamento:'Orçamento', medicao:'Medição', financeiro:'Financeiro', fisfin:'Físico-financeiro', dre:'DRE', agenda:'Agenda', reunioes:'Reuniões', documentos:'Documentos', relatorio:'Relatório mensal', cadastro:'Cadastro', quinzenal:'Relatório quinzenal', pedidos:'Pedidos de pagamento', pagprazos:'Pagamentos e prazos', metaevo:'Meta × evolução', encerramento:'Encerramento e P0', garantias:'Garantias', chamados:'Chamados', visitas:'Visitas', satisfacao:'Satisfação'};
 function abaMapa(){
   var m=abaMapaTodas();
-  if(Store.papel==='campo'){ ['pedidos','pagprazos','metaevo','cadastro','painel'].forEach(function(k){ delete m[k]; }); }
+  Object.keys(m).forEach(function(k){ if(!libVe(k)) delete m[k]; });
   if(Store.papel!=='cliente') return m;
   var r=parseRoute(), o=r&&r.oid?G('obras',r.oid):null, ok={}; clienteAbas(o).forEach(function(k){ if(m[k]) ok[k]=m[k]; }); return ok;
 }
@@ -6321,7 +6323,7 @@ COBX.cadCompletude=cadCompletude; COBX.cadNormalizar=cadNormalizar; COBX.cadDoc=
 var CD_ABAS=[['clientes','Clientes'],['obras','Obras'],['prestadores','Prestadores'],['fornecedores','Fornecedores'],['parceiros','Parceiros'],['servicos','Lista de serviços'],['usuarios','Usuários e acessos']];
 var CD_PARC={arquiteto:'Arquiteto(a)', engenheiro:'Engenheiro(a)', projetista:'Projetista', imobiliaria:'Imobiliária', corretor:'Corretor(a)', escritorio:'Escritório parceiro', outro:'Outro'};
 var CD_PESSOA={pf:'Pessoa física', pj:'Pessoa jurídica'};
-var CD_PAPEIS={dono:['Administrador','Diretoria: vê e altera tudo, inclusive usuários e valores.'], gestor:['Gestão','Engenharia e compras: edita obras, compras, estoque, contratos e medições; só lê o financeiro.'], financeiro:['Financeiro','Pagamentos, contas, medições e dados de clientes; só lê as obras.'], campo:['Campo','Mestre e encarregado: diário, fichas, ocorrências e recebimento. Nunca vê valores nem dados de clientes.'], cliente:['Cliente','Acompanha só a própria obra: relatórios, garantias e satisfação.'], leitura:['Somente leitura','Consulta tudo que não é restrito, sem editar.']};
+var CD_PAPEIS={dono:['Administrador','Diretoria: vê e altera tudo, inclusive usuários e valores.'], compras:['Compras','Compras, estoque, locações e cadastro de fornecedores; vê as obras sem editar o resto.'], engenharia:['Engenharia','Planejamento, execução, diário, medição e vistorias; aprova liberação de etapa.'], gestor:['Gestão','Engenharia e compras: edita obras, compras, estoque, contratos e medições; só lê o financeiro.'], financeiro:['Financeiro','Pagamentos, contas, medições e dados de clientes; só lê as obras.'], campo:['Campo','Mestre e encarregado: diário, fichas, ocorrências e recebimento. Nunca vê valores nem dados de clientes.'], cliente:['Cliente','Acompanha só a própria obra: relatórios, garantias e satisfação.'], leitura:['Somente leitura','Consulta tudo que não é restrito, sem editar.']};
 var CD_SIT={ativo:['ok','Ativo'], suspenso:['crit','Suspenso'], convidado:['warn','Convidado'], sem_acesso:['','Sem acesso']};
 function cdAba(){ var p=(location.hash||'').replace(/^#\/?/,'').split('/'); return CD_ABAS.some(function(a){ return a[0]===p[1]; })?p[1]:'clientes'; }
 function cdPodeUsuarios(){ return Store.papel==='dono'||!Store.cli; }
@@ -6772,15 +6774,17 @@ async function prazoSyncDiario(oid){
   if(!mud.length) return;
   var ats=byObra('atividades',oid); if(!ats.length) return;
   try{
-    var tasks=[]; ats.forEach(function(a){ var av=a.avanco||0; if(av>=100||!delta) return; tasks.push(Store.set('atividades',a.id,Object.assign({},a,av>0?{fim:addDays(a.fim,delta)}:{inicio:addDays(a.inicio,delta),fim:addDays(a.fim,delta)}))); });
-    mud.forEach(function(m){ tasks.push(Store.set('diarios',m[0].id,Object.assign({},m[0],{prazoAplicado:m[1]}))); });
+    var tasks=[]; libSistema(function(){
+      ats.forEach(function(a){ var av=a.avanco||0; if(av>=100||!delta) return; tasks.push(Store.set('atividades',a.id,Object.assign({},a,av>0?{fim:addDays(a.fim,delta)}:{inicio:addDays(a.inicio,delta),fim:addDays(a.fim,delta)}))); });
+      mud.forEach(function(m){ tasks.push(Store.set('diarios',m[0].id,Object.assign({},m[0],{prazoAplicado:m[1]}))); });
+    });
     await Promise.all(tasks);
     if(delta) toast((delta>0?'Chuva: +':'Ajuste: ')+delta+' '+(Math.abs(delta)===1?'dia':'dias')+' no cronograma, automático.');
   }catch(err){ /* sem permissão para mexer no cronograma: o prazo segue contado como pendente e é aplicado depois */ }
 }
 async function prazoDiarioExcluir(id){
   var e=G('diarios',id); if(!e) return; var ap=e.prazoAplicado||0;
-  if(ap){ try{ await Promise.all(byObra('atividades',e.obraId).filter(function(a){ return (a.avanco||0)<100; }).map(function(a){ return Store.set('atividades',a.id,Object.assign({},a,(a.avanco||0)>0?{fim:addDays(a.fim,-ap)}:{inicio:addDays(a.inicio,-ap),fim:addDays(a.fim,-ap)})); })); }catch(err){} }
+  if(ap){ try{ await Promise.all(libSistema(function(){ return byObra('atividades',e.obraId).filter(function(a){ return (a.avanco||0)<100; }).map(function(a){ return Store.set('atividades',a.id,Object.assign({},a,(a.avanco||0)>0?{fim:addDays(a.fim,-ap)}:{inicio:addDays(a.inicio,-ap),fim:addDays(a.fim,-ap)})); }); })); }catch(err){} }
 }
 /* ---- integração: aditivo, prazo no cronograma, compras e pagamentos ---- */
 function prazoFonte(s){ var ad=solAditivo(s); return ad?{col:'aditivos',rec:ad}:{col:'solicitacoes',rec:s}; }
@@ -6805,19 +6809,21 @@ function prazoAplicar(col,id,auto){
   var alvo=et?ats.filter(function(a){ return a.etapa===et; }):[], depois=et?ats.filter(function(a){ return a.etapa>et; }):[];
   if(!alvo.length&&!depois.length){ var ult=ats.slice().sort(function(a,b){ return a.fim<b.fim?1:-1; })[0]; alvo=[ult]; }
   var tasks=[];
-  alvo.forEach(function(a){ tasks.push(Store.set('atividades',a.id,Object.assign({},a,{fim:addDays(a.fim,dias)}))); });
-  depois.forEach(function(a){ tasks.push(Store.set('atividades',a.id,Object.assign({},a,{inicio:addDays(a.inicio,dias),fim:addDays(a.fim,dias)}))); });
-  var upd=Object.assign({},r,{prazoAplicadoEm:hoje(), prazoEtapa:et});
-  if(col==='solicitacoes') upd.hist=solHist(r,'prazo_aplicado',dias+' dias');
-  tasks.push(Store.set(col,id,upd));
+  libSistema(function(){
+    alvo.forEach(function(a){ tasks.push(Store.set('atividades',a.id,Object.assign({},a,{fim:addDays(a.fim,dias)}))); });
+    depois.forEach(function(a){ tasks.push(Store.set('atividades',a.id,Object.assign({},a,{inicio:addDays(a.inicio,dias),fim:addDays(a.fim,dias)}))); });
+    var upd=Object.assign({},r,{prazoAplicadoEm:hoje(), prazoEtapa:et});
+    if(col==='solicitacoes') upd.hist=solHist(r,'prazo_aplicado',dias+' dias');
+    tasks.push(Store.set(col,id,upd));
+  });
   return Promise.all(tasks).then(function(){ toast('Prazo atualizado automaticamente: +'+dias+' dias no cronograma'+(et?' a partir da etapa '+et+'.':'.')); });
 }
 /* aditivo assinado ou recusado atualiza a solicitação que o originou, para os dois nunca divergirem */
 function solSyncAditivo(a,acao,motivo){
   if(!a||!a.origem||a.origem.col!=='solicitacoes') return Promise.resolve();
   var s=G('solicitacoes',a.origem.id); if(!s) return Promise.resolve();
-  if(acao==='assinado') return Store.set('solicitacoes',s.id,Object.assign({},s,{hist:solHist(s,'aditivo_assinado','aditivo nº '+a.numero)}));
-  if(acao==='recusado') return Store.set('solicitacoes',s.id,Object.assign({},s,{status:'recusada', decisao:Object.assign({},s.decisao||{data:hoje(),quem:'Cliente',anexos:[]},{ref:((s.decisao&&s.decisao.ref)||'')+' | Aditivo nº '+a.numero+' recusado pelo cliente: '+(motivo||'')}), hist:solHist(s,'recusada','aditivo recusado')}));
+  if(acao==='assinado') return libSistema(function(){ return Store.set('solicitacoes',s.id,Object.assign({},s,{hist:solHist(s,'aditivo_assinado','aditivo nº '+a.numero)})); });
+  if(acao==='recusado') return libSistema(function(){ return Store.set('solicitacoes',s.id,Object.assign({},s,{status:'recusada', decisao:Object.assign({},s.decisao||{data:hoje(),quem:'Cliente',anexos:[]},{ref:((s.decisao&&s.decisao.ref)||'')+' | Aditivo nº '+a.numero+' recusado pelo cliente: '+(motivo||'')}), hist:solHist(s,'recusada','aditivo recusado')})); });
   return Promise.resolve();
 }
 function solDivergencias(s){
@@ -7027,8 +7033,8 @@ function cronoDeslocarEtapa(oid,et,dias){
   var ats=byObra('atividades',oid); if(!ats.length) return Promise.resolve(false);
   var alvo=et?ats.filter(function(a){ return a.etapa===et; }):[], depois=et?ats.filter(function(a){ return a.etapa>et; }):[];
   if(!alvo.length&&!depois.length) alvo=[ats.slice().sort(function(a,b){ return a.fim<b.fim?1:-1; })[0]];
-  var t=[]; alvo.forEach(function(a){ t.push(Store.set('atividades',a.id,Object.assign({},a,{fim:addDays(a.fim,dias)}))); });
-  depois.forEach(function(a){ t.push(Store.set('atividades',a.id,Object.assign({},a,{inicio:addDays(a.inicio,dias),fim:addDays(a.fim,dias)}))); });
+  var t=[]; libSistema(function(){ alvo.forEach(function(a){ t.push(Store.set('atividades',a.id,Object.assign({},a,{fim:addDays(a.fim,dias)}))); });
+  depois.forEach(function(a){ t.push(Store.set('atividades',a.id,Object.assign({},a,{inicio:addDays(a.inicio,dias),fim:addDays(a.fim,dias)}))); }); });
   return Promise.all(t).then(function(){ return true; });
 }
 async function impAplicar(id){
@@ -7075,10 +7081,145 @@ function cadFormAcesso(oid){
 }
 Object.assign(AG,{ 'imp-aplicar':function(d){ impAplicar(d.id); }, 'cad-acesso':function(d){ cadFormAcesso(d.oid); } });
 COBX.diaImpedimento=diaImpedimento; COBX.impedimentosObra=impedimentosObra; COBX.clienteAbas=clienteAbas; COBX.impAplicar=impAplicar; COBX.impRelDados=impRelDados; COBX.cadAcessoCard=cadAcessoCard;
+/* ================= LIBERAÇÕES: QUEM VÊ, QUEM EDITA E QUEM APROVA =================
+   O administrador define, por papel (financeiro, compras, engenharia, campo…), o que cada setor do aplicativo mostra
+   (sem acesso, ver, editar), quais aprovações pode dar e se enxerga valores em R$. O cliente só visualiza e nunca aprova.
+   A matriz fica na coleção "liberacoes" (doc "matriz"); no servidor, os níveis por grupo e as aprovações são gravados
+   pela função definir_liberacoes. Sem matriz salva, valem os padrões abaixo (os mesmos de antes). */
+var LIB_PAPEIS=[['dono','Administrador'],['gestor','Gestão'],['financeiro','Financeiro'],['compras','Compras'],['engenharia','Engenharia'],['campo','Obra (campo)'],['cliente','Cliente'],['leitura','Somente leitura']];
+var LIB_SETORES=['Obras','Planejamento','Execução e qualidade','Suprimentos','Prestadores','Custo e financeiro','Gestão','Pós-obra','Encerramento','Sistema'];
+/* [chave, nome, setor, grupo no servidor] */
+var LIB_AREAS=[
+  ['painel','Painel de evolução',0,'obras'],['resumo','Resumo da obra',0,'obras'],['cadastro','Cadastro da obra',0,'obras'],
+  ['etapas','Etapas e evolução',1,'obras'],['cronograma','Cronograma',1,'obras'],['balanco','Balanço',1,'obras'],['semana','Semana e PPC',1,'obras'],
+  ['diario','Diário de obra',2,'campo'],['solicitacoes','Solicitações e mudanças',2,'campo'],['ocorrencias','Ocorrências',2,'campo'],['entrega','Pré-entrega',2,'campo'],['projeto','RFI e materiais',2,'campo'],
+  ['compras','Compras e cotações da obra',3,'suprimentos'],['estoque','Estoque',3,'estoque'],['locacoes','Locações',3,'suprimentos'],['comprasg','Página Compras (todas as obras)',3,'suprimentos'],
+  ['contratos','Contratos e frentes',4,'contratos'],['avaliacoes','Avaliações de prestadores',4,'avaliacao'],['prestadoresg','Prestadores e fornecedores (cadastro)',4,'cadastros'],
+  ['orcamento','Orçamento e aditivos',5,'orcamento'],['medicao','Medição',5,'medicao'],['pedidos','Pedidos de pagamento',5,'financeiro'],['financeiro','Financeiro',5,'financeiro'],['pagprazos','Pagamentos e prazos',5,'financeiro'],['metaevo','Meta × evolução',5,'financeiro'],['fisfin','Físico-financeiro',5,'financeiro'],['dre','DRE e fluxo de caixa',5,'dre'],
+  ['agenda','Agenda',6,'obras'],['reunioes','Reuniões',6,'campo'],['documentos','Documentos',6,'campo'],['quinzenal','Relatório quinzenal',6,'relatorio'],['relatorio','Relatório mensal',6,'relatorio'],['visao','Visão geral',6,'obras'],
+  ['garantias','Garantias',7,'garantia'],['chamados','Chamados de garantia',7,'chamados'],['visitas','Visitas pós-obra',7,'posobra'],['satisfacao','Satisfação',7,'satisfacao'],
+  ['encerramento','Encerramento e P0',8,'obras'],
+  ['cadastros','Cadastros (clientes, usuários, lista de serviços)',9,'cadastros'],['fluxo','Fluxo e protocolos',9,'obras'],['nuvem','Nuvem e histórico',9,'config']
+];
+/* [chave, nome, setor] */
+var LIB_APROV=[
+  ['compra_pagar','Confirmar pagamento de compra','Suprimentos'],
+  ['med_aprovar','Aprovar medição','Custo e financeiro'],['med_pagar','Pagar medição','Custo e financeiro'],
+  ['ped_aprovar','Aprovar pedido de pagamento','Custo e financeiro'],['ped_pagar','Pagar pedido de pagamento','Custo e financeiro'],
+  ['adt_assinar','Registrar assinatura de aditivo','Custo e financeiro'],['sol_decidir','Registrar decisão de solicitação','Execução e qualidade'],
+  ['etapa_liberar','Liberar etapa na vistoria','Execução e qualidade'],['rel_emitir','Emitir relatório ao cliente','Gestão'],
+  ['chamado_negar','Negar chamado de garantia','Pós-obra'],['obra_encerrar','Encerrar ou reabrir obra','Encerramento']
+];
+var LIB_ACOES={'pg-confirmar':'compra_pagar','med-aprovar':'med_aprovar','med-pagar':'med_pagar','ped-aprovar':'ped_aprovar','ped-pagar':'ped_pagar','adt-assinar':'adt_assinar','sol-decidir':'sol_decidir','rel-emitir':'rel_emitir','qz-emitir':'rel_emitir','obra-encerrar':'obra_encerrar','obra-reabrir':'obra_encerrar'};
+var LIB_COL={diarios:'diario',solicitacoes:'solicitacoes',solicitacoesImpacto:'solicitacoes',ocorrencias:'ocorrencias',fichas:'etapas',etapas:'etapas',pacotes:'semana',atividades:'cronograma',compras:'compras',locacoes:'locacoes',movEstoque:'estoque',contratosPrest:'contratos',termos:'contratos',danos:'contratos',orcamentos:'orcamento',orcItens:'orcamento',aditivos:'orcamento',medicoes:'medicao',pedidosPag:'pedidos',contasPagar:'financeiro',aportes:'financeiro',lancamentos:'dre',empresas:'dre',contratosCliente:'dre',relatorios:'relatorio',rfis:'projeto',materiais:'projeto',avaliacoes:'avaliacoes',eventos:'agenda',atas:'reunioes',acoes:'reunioes',docsLegais:'documentos',docsPrest:'documentos',clientes:'cadastros',catalogoServicos:'cadastros',prestadores:'prestadoresg',fornecedores:'prestadoresg',cadastros:'cadastro',arquivosObra:'cadastro',garantias:'garantias',chamadosGarantia:'chamados',visitasPosObra:'visitas',pesquisasSatisfacao:'satisfacao'};
+var LIB_PAG={compras:'comprasg',dre:'dre',agenda:'agenda',prestadores:'prestadoresg',fornecedores:'prestadoresg',cadastros:'cadastros',visao:'visao',fluxo:'fluxo',nuvem:'nuvem',historico:'nuvem'};
+var libSys=0;
+function libSistema(fn){ libSys++; try{ return fn(); } finally{ libSys--; } }
+
+function libPadrao(p){
+  var a={}, ap=[], val=true, todas=LIB_AREAS.map(function(x){ return x[0]; });
+  var set=function(n,l){ l.forEach(function(k){ a[k]=n; }); };
+  var fin=['orcamento','medicao','pedidos','financeiro','pagprazos','metaevo','fisfin','dre'], exec=['etapas','cronograma','balanco','semana','diario','solicitacoes','ocorrencias','entrega','projeto','reunioes','documentos'], sup=['compras','estoque','locacoes','comprasg'], pos=['garantias','chamados','visitas','satisfacao'];
+  set('v',todas);
+  if(p==='dono'){ set('e',todas); ap=LIB_APROV.map(function(x){ return x[0]; }); }
+  else if(p==='gestor'){ set('e',todas); set('v',['pedidos','financeiro','pagprazos','metaevo','fisfin']); set('n',['dre']); ap=LIB_APROV.map(function(x){ return x[0]; }).filter(function(k){ return k!=='obra_encerrar'&&k!=='med_aprovar'&&k!=='med_pagar'&&k!=='ped_aprovar'&&k!=='ped_pagar'&&k!=='compra_pagar'; }); }
+  else if(p==='financeiro'){ set('e',fin.concat(sup,['contratos','prestadoresg','cadastros','quinzenal','relatorio'])); ap=['compra_pagar','med_aprovar','med_pagar','ped_aprovar','ped_pagar','adt_assinar']; }
+  else if(p==='compras'){ set('e',sup.concat(['prestadoresg'])); set('n',['medicao','financeiro','pagprazos','metaevo','fisfin','dre','orcamento','cadastros']); }
+  else if(p==='engenharia'){ set('e',exec.concat(['contratos','avaliacoes','medicao','encerramento'].concat(pos))); set('n',['pedidos','financeiro','pagprazos','metaevo','fisfin','dre','cadastros']); ap=['etapa_liberar','chamado_negar','sol_decidir']; }
+  else if(p==='campo'){ set('e',['etapas','semana','diario','solicitacoes','ocorrencias','entrega','projeto','reunioes','documentos','compras','estoque','locacoes']); set('n',fin.concat(['comprasg','cadastro','painel','cadastros','prestadoresg','quinzenal','relatorio','nuvem'],pos)); val=false; }
+  else if(p==='cliente'){ set('n',todas); set('v',['painel','cronograma','etapas','diario','solicitacoes','relatorio','quinzenal'].concat(pos)); val=false; }
+  else if(p==='leitura'){ set('n',['nuvem']); }
+  return {a:a, ap:ap, val:val};
+}
+function libMatriz(){ var d=G('liberacoes','matriz'); return (d&&d.papeis)||{}; }
+function libCfg(p){
+  var pad=libPadrao(p), m=libMatriz()[p]; if(!m) return pad;
+  var a=Object.assign({}, pad.a, m.a||{}), ap=Array.isArray(m.ap)?m.ap:pad.ap;
+  if(p==='cliente'){ ap=[]; Object.keys(a).forEach(function(k){ if(a[k]==='e') a[k]='v'; }); }
+  return {a:a, ap:ap, val:m.val==null?pad.val:!!m.val};
+}
+function libPapel(){ return Store.papel||'dono'; }
+function libNivel(k,p){ p=p||libPapel(); if(p==='dono') return 'e'; return libCfg(p).a[k]||'v'; }
+function libVe(k){ return libNivel(k)!=='n'; }
+function libEdita(k){ return libNivel(k)==='e'; }
+function libAprova(k,p){ p=p||libPapel(); if(p==='cliente') return false; if(p==='dono') return true; return libCfg(p).ap.indexOf(k)>=0; }
+function libValores(){ var p=libPapel(); if(p==='dono') return true; if(p==='cliente') return false; return libCfg(p).val; }
+/* área da tela aberta, para saber se ela é só de leitura ou está bloqueada */
+function libAreaRota(r){
+  if(r.view==='obra'){ var m=abaMapa(), t=m[r.tab]?r.tab:(m.painel?'painel':(m.resumo?'resumo':(m.chamados?'chamados':Object.keys(m)[0]))); return t||''; }
+  if(r.view==='etapa') return 'etapas';
+  return LIB_PAG[r.view]||'';
+}
+function libSoVer(r){ var k=libAreaRota(r); return !!k&&libNivel(k)==='v'; }
+function libBloqueio(r){
+  if(r.view==='liberacoes') return libPapel()==='dono'?null:'<div class="wrap"><div class="card empty"><h3>Só o administrador altera as liberações</h3><p><a href="#/painel">Voltar às obras</a></p></div></div>';
+  var k=LIB_PAG[r.view]; if(k&&!libVe(k)) return '<div class="wrap"><div class="card empty"><h3>Sem acesso a esta área</h3><p>O administrador não liberou “'+esc((LIB_AREAS.filter(function(x){ return x[0]===k; })[0]||[0,k])[1])+'” para o seu papel. <a href="#/painel">Voltar às obras</a></p></div></div>';
+  return null;
+}
+function libPodeCol(c){ if(libSys>0) return true; var k=LIB_COL[c]; if(!k) return true; return libEdita(k); }
+function libAcaoBloqueada(act,d){
+  var k=LIB_ACOES[act]; if(!k&&act==='etapa-mover'&&d&&d.to==='liberada') k='etapa_liberar';
+  if(!k) return '';
+  if(libAprova(k)) return '';
+  return libPapel()==='cliente'?'O cliente não aprova nada pelo aplicativo.':'Seu papel não pode: '+(LIB_APROV.filter(function(x){ return x[0]===k; })[0]||[0,k])[1].toLowerCase()+'.';
+}
+/* menu lateral: tira o que o papel não enxerga e mostra "Liberações" ao administrador */
+function libFiltraNav(nav){
+  Object.keys(LIB_PAG).forEach(function(v){ if(libVe(LIB_PAG[v])) return; nav=nav.replace(new RegExp('<a href="#/'+v+'"[^>]*>[^<]*</a>'),''); });
+  if(libPapel()==='dono') nav=nav.replace('<a href="#/nuvem"','<a href="#/liberacoes"'+(parseRoute().view==='liberacoes'?' aria-current="page"':'')+'>Liberações</a><a href="#/nuvem"');
+  return nav;
+}
+/* áreas do servidor: o nível do grupo é o maior entre as áreas do papel (o servidor é por grupo; a tela é mais fina) */
+function libGrupos(p){
+  var c=libCfg(p), g={};
+  LIB_AREAS.forEach(function(x){ if(!x[3]) return; var n=c.a[x[0]], r={n:0,v:1,e:2}; if(g[x[3]]==null||r[n]>r[g[x[3]]]) g[x[3]]=n; });
+  var out={}; Object.keys(g).forEach(function(k){ out[k]=g[k]==='e'?'E':(g[k]==='v'?'L':'N'); }); return out;
+}
+async function libSalvar(p,cfg){
+  var papeis=Object.assign({}, libMatriz()); papeis[p]={a:cfg.a, ap:cfg.ap, val:cfg.val};
+  await Store.set('liberacoes','matriz',{papeis:papeis, atualizadoEm:new Date().toISOString(), por:Store.uid||null});
+  if(typeof Supa!=='undefined'&&Supa.v2&&Supa.v2()&&Supa.cli&&p!=='cliente'&&p!=='dono'){
+    try{ var r=await Supa.cli.rpc('definir_liberacoes',{p_papel:p, p_grupos:libGrupos(p), p_aprova:cfg.ap}); if(r.error) throw r.error; }
+    catch(e){ toast('Salvo no aplicativo, mas o servidor não aceitou ('+(e.message||e.code)+').', true); }
+  }
+}
+
+function vLiberacoes(){
+  var p=ui.libPapel||'financeiro', cfg=libCfg(p), cli=p==='cliente', adm=p==='dono';
+  var chips='<div class="row" style="gap:6px;flex-wrap:wrap;margin:14px 0">'+LIB_PAPEIS.map(function(x){ return '<button class="btn sm'+(p===x[0]?' primary':'')+'" data-act="lib-papel" data-p="'+x[0]+'">'+esc(x[1])+'</button>'; }).join('')+'</div>';
+  var nota=adm?'<div class="callout" style="margin-bottom:12px"><strong>O administrador sempre pode tudo.</strong> Só ele altera as liberações e os usuários.</div>':(cli?'<div class="callout" style="margin-bottom:12px"><strong>O cliente só visualiza e não aprova nada.</strong> Aqui você define o que pode ser liberado a ele; em cada obra, no Cadastro, você escolhe o que ele realmente vê.</div>':'');
+  var opt=function(v,s){ return '<option value="'+v+'"'+(s===v?' selected':'')+'>'+({n:'Sem acesso',v:'Só ver',e:'Ver e editar'}[v])+'</option>'; };
+  var setores=LIB_SETORES.map(function(nome,si){
+    var l=LIB_AREAS.filter(function(x){ return x[2]===si; }); if(!l.length) return '';
+    return '<section class="card sec"><div class="card-h"><h2>'+esc(nome)+'</h2></div><div class="tbl-scroll"><table class="tbl"><tbody>'+l.map(function(x){
+      var n=adm?'e':cfg.a[x[0]];
+      return '<tr><td>'+esc(x[1])+'</td><td style="width:190px"><select data-chg="lib-niv" data-k="'+x[0]+'" aria-label="'+esc(x[1])+'"'+(adm?' disabled':'')+'>'+opt('n',n)+opt('v',n)+(cli?'':opt('e',n))+'</select></td></tr>';
+    }).join('')+'</tbody></table></div></section>';
+  }).join('');
+  var porSetor={}; LIB_APROV.forEach(function(x){ (porSetor[x[2]]=porSetor[x[2]]||[]).push(x); });
+  var aprov='<section class="card sec"><div class="card-h"><div><h2>O que este papel pode aprovar</h2><p class="muted small">'+(cli?'O cliente não aprova nada: o que ele decide é registrado pela equipe.':'Aprovar é diferente de editar: marque só quem pode dar o “de acordo”.')+'</p></div></div><div class="pad">'
+    +Object.keys(porSetor).map(function(s){ return '<h4 class="small muted" style="margin:8px 0 4px">'+esc(s)+'</h4>'+porSetor[s].map(function(x){ return '<label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" data-chg="lib-ap" data-k="'+x[0]+'"'+((adm||cfg.ap.indexOf(x[0])>=0)&&!cli?' checked':'')+((adm||cli)?' disabled':'')+'> '+esc(x[1])+'</label>'; }).join(''); }).join('')+'</div></section>';
+  var val='<section class="card sec"><div class="card-h"><div><h2>Valores em R$</h2><p class="muted small">Se desmarcado, este papel nunca vê preços, custos nem valores de contrato.</p></div></div><div class="pad"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-chg="lib-val"'+((adm||cfg.val)&&!cli?' checked':'')+((adm||cli)?' disabled':'')+'> Pode ver valores em R$</label></div></section>';
+  return '<div class="wrap"><div class="sec-h"><div><h2>Liberações</h2><p class="muted small">Quem vê, quem edita e quem aprova cada área do aplicativo. A mudança vale na hora e é gravada no servidor.</p></div>'+(adm?'':'<button class="btn" data-act="lib-padrao" data-p="'+p+'" data-write>Restaurar o padrão deste papel</button>')+'</div>'+chips+nota+'<div class="grid cols2" style="align-items:start"><div class="stack">'+setores+'</div><div class="stack">'+aprov+val+'<section class="card sec"><div class="pad small muted">O servidor aplica o nível por grupo de dados (o maior entre as áreas do grupo); a tela é mais fina e esconde ou bloqueia o resto. Aprovar medição, assinar aditivo e negar chamado também são checados no servidor.</div></section></div></div></div>';
+}
+Object.assign(AG,{
+  'lib-papel':function(d){ ui.libPapel=d.p; render(); },
+  'lib-padrao':async function(d){ var ok=await confirmDlg('Restaurar o padrão?','<p>As liberações de “'+esc((LIB_PAPEIS.filter(function(x){ return x[0]===d.p; })[0]||[0,d.p])[1])+'” voltam ao padrão.</p>','Restaurar',false); if(!ok) return; var m=Object.assign({}, libMatriz()); delete m[d.p]; await Store.set('liberacoes','matriz',{papeis:m, atualizadoEm:new Date().toISOString(), por:Store.uid||null}); var pd=libPadrao(d.p); if(d.p!=='cliente') await libSalvar(d.p,pd); toast('Padrão restaurado.'); }
+});
+document.addEventListener('change', function(e){
+  var el=e.target.closest&&e.target.closest('[data-chg^="lib-"]'); if(!el) return;
+  var p=ui.libPapel||'financeiro'; if(p==='dono') return;
+  var cfg=libCfg(p), a=Object.assign({}, cfg.a), ap=cfg.ap.slice(), val=cfg.val, t=el.dataset.chg;
+  if(t==='lib-niv') a[el.dataset.k]=el.value;
+  else if(t==='lib-ap'){ var i=ap.indexOf(el.dataset.k); if(el.checked&&i<0) ap.push(el.dataset.k); if(!el.checked&&i>=0) ap.splice(i,1); }
+  else if(t==='lib-val') val=el.checked;
+  libSalvar(p,{a:a,ap:ap,val:val});
+});
+COBX.libCfg=libCfg; COBX.libPadrao=libPadrao; COBX.libNivel=libNivel; COBX.libAprova=libAprova; COBX.libGrupos=libGrupos; COBX.libValores=libValores; COBX.libAcaoBloqueada=libAcaoBloqueada; COBX.libPodeCol=libPodeCol; COBX.LIB_AREAS=LIB_AREAS; COBX.LIB_APROV=LIB_APROV;
 /* ================= PAINEL DE INDICADORES (tela principal) =================
    Perspectivas no estilo Balanced Scorecard: Prazo e execução · Qualidade · Financeiro · Prestadores · Cliente.
    Só usa o que o app já calcula (nenhuma regra nova). Valores em R$ só para quem pode vê-los. */
-function dashVeValores(){ var p=Store.papel; return !(p==='campo'||p==='cliente'); }
+function dashVeValores(){ return libValores(); }
 function dashMedia(l){ l=l.filter(function(x){ return x!=null&&!isNaN(x); }); return l.length?l.reduce(function(s,x){ return s+x; },0)/l.length:null; }
 function dashBrl(x){ if(x==null) return '—'; var a=Math.abs(x); return (x<0?'-':'')+'R$ '+(a>=1e6?(a/1e6).toFixed(1).replace('.',',')+' mi':(a>=1e3?(a/1e3).toFixed(a>=1e5?0:1).replace('.',',')+' mil':a.toFixed(0))); }
 function dashCor(v,bom,ruim,inverso){ if(v==null) return ''; if(inverso) return v<=bom?'ok':(v<=ruim?'warn':'crit'); return v>=bom?'ok':(v>=ruim?'warn':'crit'); }
@@ -7236,15 +7377,44 @@ function fluxoTab(o,t){ return o&&abaMapa()[t]?'#/obra/'+o.id+'/'+t:''; }
 function fluxoJornada(o){
   var staff=Store.papel!=='cliente';
   var J=[
-    ['Cadastro','Quem é o cliente, onde é a obra, o que foi contratado e para onde vão os pagamentos.',[['Cadastros (clientes, prestadores, fornecedores, usuários)',staff?'#/cadastros':''],['Cadastro da obra: cliente, endereço, serviços contratados, conta',fluxoTab(o,'cadastro')],['Arquivos recebidos dos outros aplicativos',fluxoTab(o,'cadastro')]]],
-    ['Planejamento','Orçamento, cronograma e programação de compras antes de abrir a frente.',[['Orçamento',fluxoTab(o,'orcamento')],['Cronograma e linha de base',fluxoTab(o,'cronograma')],['Físico-financeiro',fluxoTab(o,'fisfin')],['Contratos e frentes de prestadores',fluxoTab(o,'contratos')]]],
-    ['Execução e qualidade','As 22 etapas, cada uma liberada na vistoria, com apontamentos e conclusão.',[['Etapas, quadro de evolução e apontamentos',fluxoTab(o,'etapas')],['Diário de obra',fluxoTab(o,'diario')],['Solicitações e mudanças (protocolo)',fluxoTab(o,'solicitacoes')],['Ocorrências e fichas de verificação',fluxoTab(o,'ocorrencias')],['Semana e PPC',fluxoTab(o,'semana')]]],
+    ['Cadastro','Quem é o cliente, onde é a obra, o que foi contratado e para onde vão os pagamentos.',[['Cadastros (clientes, prestadores, fornecedores, usuários)',staff?'#/cadastros':''],['Liberações: quem vê, edita e aprova',Store.papel==='dono'?'#/liberacoes':''],['Acesso do cliente (o que ele vê)',fluxoTab(o,'cadastro')],['Cadastro da obra: cliente, endereço, serviços contratados, conta',fluxoTab(o,'cadastro')],['Arquivos recebidos dos outros aplicativos',fluxoTab(o,'cadastro')]]],
+    ['Planejamento','Orçamento, cronograma e programação de compras antes de abrir a frente.',[['Orçamento',fluxoTab(o,'orcamento')],['Cronograma, linha de base e motivos de atraso',fluxoTab(o,'cronograma')],['Físico-financeiro',fluxoTab(o,'fisfin')],['Contratos e frentes de prestadores',fluxoTab(o,'contratos')]]],
+    ['Execução e qualidade','As 22 etapas, cada uma liberada na vistoria, com apontamentos e conclusão.',[['Etapas, quadro de evolução e apontamentos',fluxoTab(o,'etapas')],['Diário de obra: chuva, equipe e empecilhos ajustam o prazo',fluxoTab(o,'diario')],['Solicitações e mudanças (protocolo)',fluxoTab(o,'solicitacoes')],['Ocorrências e fichas de verificação',fluxoTab(o,'ocorrencias')],['Semana e PPC',fluxoTab(o,'semana')]]],
     ['Suprimentos e financeiro','Compras, medições, pedidos de pagamento e fluxo do mês.',[['Compras e cotações',fluxoTab(o,'compras')],['Medição de serviços',fluxoTab(o,'medicao')],['Pedidos de pagamento e fora do escopo',fluxoTab(o,'pedidos')],['Financeiro e pagamentos e prazos',fluxoTab(o,'financeiro')],['Estoque e locações',fluxoTab(o,'estoque')]]],
     ['Gestão','Leitura rápida para decidir: atrasos, o que comprar, meta × evolução e relatórios ao cliente.',[['Visão geral (7, 15, 30, 90 e 120 dias)',staff?'#/visao':''],['Meta × evolução × pagamentos',fluxoTab(o,'metaevo')],['Relatório quinzenal ao cliente',fluxoTab(o,'quinzenal')],['Relatório mensal',fluxoTab(o,'relatorio')],['DRE e fluxo de caixa',staff?'#/dre':'']]],
     ['Entrega e pós-obra','Fim de obra alinhado às compras, entrega formal, garantias e visitas.',[['Encerramento e P0',fluxoTab(o,'encerramento')],['Pré-entrega',fluxoTab(o,'entrega')],['Garantias, chamados e satisfação',fluxoTab(o,'garantias')]]]
   ];
   return '<section class="card sec flx-jor"><div class="card-h"><div><h2>O que dá para fazer no aplicativo</h2><p class="muted small">Da esquerda para a direita, na ordem em que a obra acontece. Toque em um item para abrir.'+(o?'':' Escolha uma obra acima para ligar os atalhos.')+'</p></div></div><ol class="jor">'
     +J.map(function(f,i){ return '<li><span class="jor-n">'+(i+1)+'</span><h3>'+esc(f[0])+'</h3><p class="muted small">'+esc(f[1])+'</p><ul>'+f[2].map(function(x){ return '<li>'+(x[1]?'<a href="'+x[1]+'">'+esc(x[0])+'</a>':'<span class="muted">'+esc(x[0])+'</span>')+'</li>'; }).join('')+'</ul></li>'; }).join('')+'</ol></section>';
+}
+/* protocolo de mudanças: o caminho de um pedido (projeto, obra, aditivo, material ou escopo) e onde ele está agora */
+function fluxoProtocolo(o){
+  if(!o||Store.papel==='cliente') return '';
+  var l=solDaObra(o.id), n=function(f){ return l.filter(f).length; };
+  var quem=function(k){ var q=LIB_PAPEIS.filter(function(p){ return p[0]!=='cliente'&&libAprova(k,p[0]); }).map(function(p){ return p[1]; }); return q.length?q.join(', '):'—'; };
+  var ed=LIB_PAPEIS.filter(function(p){ return p[0]!=='cliente'&&libNivel('solicitacoes',p[0])==='e'; }).map(function(p){ return p[1]; }).join(', ');
+  var pas=[
+    ['1. Registrar','Qualquer pedido que muda o combinado entra no protocolo, com número, quem pediu, motivo e impacto em custo e prazo. Pode nascer no diário do dia.',n(function(s){ return s.status==='registrada'; }),'Quem edita: '+ed],
+    ['2. Analisar','A engenharia confere o impacto técnico (e consulta o projetista, se precisar) e preenche custo e prazo.',n(function(s){ return s.status==='em_analise'; }),'Quem edita: '+ed],
+    ['3. Decidir','A decisão do cliente é registrada pela equipe, com comprovante. O cliente não aprova pelo aplicativo.',n(function(s){ return s.status==='aguardando_decisao'; }),'Quem registra: '+quem('sol_decidir')],
+    ['4. Aditivo','Aprovada com variação de custo, gera o aditivo; só o aditivo assinado altera o orçamento revisado. Compra e pagamento fora do escopo ficam travados até lá.',n(function(s){ return s.status==='aprovada'&&solCusto(s)&&!(solAditivo(s)&&solAditivo(s).status==='assinado'); }),'Quem assina: '+quem('adt_assinar')],
+    ['5. Prazo','Dias aprovados entram sozinhos no cronograma e no término previsto, sem contar duas vezes.',n(function(s){ return (s.status==='aprovada'||s.status==='concluida')&&s.impactoPrazoDias>0&&!prazoAplicado(s); }),'Automático'],
+    ['6. Concluir','Só conclui com aditivo assinado e prazo aplicado: nada diverge entre protocolo, orçamento e cronograma.',n(function(s){ return s.status==='concluida'; }),'Concluídas']
+  ];
+  var corpo='<ol class="jor">'+pas.map(function(p){ return '<li><h3>'+esc(p[0])+'</h3><p class="muted small">'+esc(p[1])+'</p><p class="small"><span class="chip '+(p[2]?'warn':'')+'">'+p[2]+' nesta obra</span></p><p class="tiny muted">'+esc(p[3])+'</p></li>'; }).join('')+'</ol>';
+  var r=diarioPrazo(o.id), regras=['Chuva que impediu o serviço: o dia perdido empurra o cronograma e o término previsto sozinho ('+plural(r.chuvaPerdidos,'dia','dias')+' até agora).','Equipe faltante: conta como atraso e gera alerta, sem estender o prazo ('+plural(r.equipeDias,'dia','dias')+').','Empecilho do diário (material, projeto, decisão do cliente…): aparece no cronograma com o motivo; o setor de obras decide ajustar as datas.','Aditivo assinado ou solicitação aprovada sem custo: o prazo entra sozinho no cronograma.'];
+  return '<section class="card sec"><div class="card-h"><div><h2>Protocolo de mudanças e prazo</h2><p class="muted small">Onde cada pedido está nesta obra e quem pode fazer cada passo, conforme as liberações. <a href="'+(fluxoTab(o,'solicitacoes')||'#/painel')+'">Abrir solicitações</a></p></div></div><div class="pad">'+corpo+'<h4 class="small muted" style="margin:12px 0 6px">Regras automáticas de prazo</h4><ul class="lst">'+regras.map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('')+'</ul></div></section>';
+}
+/* quem vê, edita e aprova cada área: leitura da matriz de liberações */
+function fluxoSetores(){
+  if(Store.papel==='cliente'||Store.papel==='campo') return '';
+  var pap=LIB_PAPEIS.filter(function(p){ return p[0]!=='dono'; }), sim={e:'✎ edita',v:'👁 vê',n:'—'};
+  var corpo=LIB_SETORES.map(function(nome,si){
+    var l=LIB_AREAS.filter(function(x){ return x[2]===si; }); if(!l.length) return '';
+    return '<tr class="sub"><th colspan="'+(pap.length+1)+'">'+esc(nome)+'</th></tr>'+l.map(function(x){ return '<tr><td>'+esc(x[1])+'</td>'+pap.map(function(p){ var v=libCfg(p[0]).a[x[0]]; return '<td class="small'+(v==='n'?' muted':'')+'">'+sim[v]+'</td>'; }).join('')+'</tr>'; }).join('');
+  }).join('');
+  var ap=LIB_APROV.map(function(a){ return '<tr><td>Aprovar: '+esc(a[1])+'</td><td colspan="'+pap.length+'" class="small">'+esc(LIB_PAPEIS.filter(function(p){ return libAprova(a[0],p[0]); }).map(function(p){ return p[1]; }).join(', '))+'</td></tr>'; }).join('');
+  return '<section class="card sec"><div class="card-h"><div><h2>Quem faz o quê, por setor</h2><p class="muted small">O administrador sempre pode tudo. O cliente só visualiza o que a obra liberar e não aprova nada.'+(Store.papel==='dono'?' <a href="#/liberacoes">Editar liberações</a>':'')+'</p></div></div><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Área</th>'+pap.map(function(p){ return '<th>'+esc(p[1])+'</th>'; }).join('')+'</tr></thead><tbody>'+corpo+'<tr class="sub"><th colspan="'+(pap.length+1)+'">Aprovações</th></tr>'+ap+'</tbody></table></div></section>';
 }
 function fluxoServicos(o){
   if(!o||Store.papel==='cliente'||Store.papel==='campo') return '';
@@ -7266,7 +7436,7 @@ function vFluxo(){
     +obras.map(function(x){ return '<option value="'+esc(x.id)+'"'+(o&&o.id===x.id?' selected':'')+'>'+esc(x.nome)+'</option>'; }).join('')+'</select></div>';
   var leg=o?'<div class="flx-leg" aria-label="Legenda">'+STATUS_ORDER.map(function(s){ return '<span><i class="flx-dot '+s+'"></i>'+STATUS[s]+'</span>'; }).join('')+'<span><i class="flx-dot crit"></i>Ocorrência crítica aberta</span></div>':'<p class="muted small">Escolha uma obra para ver em que etapa ela está.</p>';
   var h='<div class="wrap"><div class="sec-h"><div><h1>Fluxo geral</h1><p class="muted" style="margin-top:4px">O caminho de uma obra, da pré-obra ao pós-obra. Cada etapa só é liberada na vistoria (losango).</p></div>'+seletor+'</div>'+leg;
-  h+=fluxoJornada(o)+fluxoServicos(o)+fluxoCompras(o)+fluxoRitos(o);
+  h+=fluxoJornada(o)+fluxoServicos(o)+fluxoProtocolo(o)+fluxoCompras(o)+fluxoSetores()+fluxoRitos(o);
   h+='<div class="flx"><div class="flx-fim ini"><strong>Início</strong><span>A obra abre com terreno regularizado, projetos, orçamento, contrato e licenças</span></div>';
   FASES.forEach(function(f,fi){
     h+='<section class="flx-fase" aria-label="Fase '+(fi+1)+': '+esc(f.nome)+'"><h2><span class="flx-num">'+(fi+1)+'</span>'+esc(f.nome)+'</h2><div class="flx-row">';
@@ -7934,6 +8104,7 @@ function parseRoute(){
   if(p[0]==='compras') return {view:'compras'};
   if(p[0]==='dre') return {view:'dre'};
   if(p[0]==='fluxo') return {view:'fluxo'};
+  if(p[0]==='liberacoes') return {view:'liberacoes'};
   if(p[0]==='visao') return {view:'visao'};
   if(p[0]==='cadastros') return {view:'cadastros'};
   if(p[0]==='nuvem') return {view:'nuvem'};
@@ -7946,7 +8117,7 @@ function topbar(r){
   var cur=function(v){ return r.view===v?' aria-current="page"':''; };
   var obraAtiva=(r.view==='obra'||r.view==='etapa'), cli=Store.papel==='cliente';
   var nav=cli?'<a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Minha obra</a>'
-    :'<span class="nav-sec">Gestão</span><a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a>'+(Store.papel==='campo'?'':'<a href="#/cadastros"'+cur('cadastros')+'>Cadastros</a>')+'<span class="nav-sec">Operação</span><a href="#/compras"'+cur('compras')+'>Compras</a><a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><span class="nav-sec">Relatórios</span><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a><span class="nav-sec">Sistema</span>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>';
+    :'<span class="nav-sec">Gestão</span><a href="#/painel"'+(r.view==='painel'||obraAtiva?' aria-current="page"':'')+'>Obras</a><a href="#/visao"'+cur('visao')+'>Visão geral</a>'+(Store.papel==='campo'?'':'<a href="#/cadastros"'+cur('cadastros')+'>Cadastros</a>')+'<span class="nav-sec">Operação</span><a href="#/compras"'+cur('compras')+'>Compras</a><a href="#/agenda"'+cur('agenda')+'>Agenda</a><a href="#/prestadores"'+cur('prestadores')+'>Prestadores</a><a href="#/fornecedores"'+cur('fornecedores')+'>Fornecedores</a><span class="nav-sec">Relatórios</span><a href="#/fluxo"'+cur('fluxo')+'>Fluxo</a><a href="#/dre"'+cur('dre')+'>DRE</a><span class="nav-sec">Sistema</span>'+(Store.backend==='supabase'?'<a href="#/historico"'+cur('historico')+'>Histórico</a>':'')+'<a href="#/nuvem"'+cur('nuvem')+'>Nuvem</a>'; if(!cli) nav=libFiltraNav(nav);
   return '<header class="top"><div class="top-in"><a class="brand" href="#/painel" aria-label="Cariati Obras, início"><img class="brand-logo" src="'+LOGO+'" alt="Cariati Arquitetura &amp; Gestão" width="56" height="44"><span class="brand-t">Controle de obras</span></a>'
     +(cli?'':'<button type="button" class="btn primary side-new" data-act="obra-nova" data-write aria-label="Nova obra">+ <b>Nova obra</b></button>')
     +'<nav class="nav" aria-label="Principal">'+nav+'</nav>'+(cli?'':sideFav())
@@ -8226,8 +8397,8 @@ function render(){
     app.innerHTML=topbar(r)+banners()+(r.view==='nuvem'?vNuvem():(r.view==='avisos'?vAvisos():(r.view==='pendencias'?vPendencias():vHistorico())));
     if(key!==lastKey) window.scrollTo(0,0); lastKey=key; uiPos(); return;
   }
-  var body=r.view==='obra'?vObra(r):(r.view==='etapa'?vEtapa(r):(r.view==='prestadores'?vPrest():(r.view==='agenda'?vAgenda():(r.view==='fornecedores'?vForn():(r.view==='compras'?vCompras():(r.view==='dre'?vDRE():(r.view==='fluxo'?vFluxo():(r.view==='visao'?vVisao():(r.view==='cadastros'?vCadastros():vPainel())))))))));
-  document.body.classList.toggle('ro', !Store.writable);
+  var bloq=libBloqueio(r), body=bloq||(r.view==='liberacoes'?vLiberacoes():r.view==='obra'?vObra(r):(r.view==='etapa'?vEtapa(r):(r.view==='prestadores'?vPrest():(r.view==='agenda'?vAgenda():(r.view==='fornecedores'?vForn():(r.view==='compras'?vCompras():(r.view==='dre'?vDRE():(r.view==='fluxo'?vFluxo():(r.view==='visao'?vVisao():(r.view==='cadastros'?vCadastros():vPainel()))))))))));
+  document.body.classList.toggle('ro', !Store.writable||libSoVer(r));
   app.innerHTML=topbar(r)+banners()+body;
   if(key===lastKey){ window.scrollTo(0,y); var g2=document.querySelector('.gantt-scroll'); if(g2) g2.scrollLeft=ui.ganttScroll; } else { window.scrollTo(0,0); ui.ganttScroll=0; }
   lastKey=key; uiPos();
@@ -8598,6 +8769,7 @@ document.addEventListener('click', function(e){
   if(e.target.closest('[data-close]')){ closeDlg(); return; }
   var el=e.target.closest('[data-act]'); if(!el) return;
   if(offBloqueia(el.dataset.act)){ e.preventDefault(); return; }
+  var lb=libAcaoBloqueada(el.dataset.act,el.dataset); if(lb){ e.preventDefault(); e.stopImmediatePropagation(); toast(lb, true); return; }
   var f=A[el.dataset.act]||A2[el.dataset.act]||A3[el.dataset.act]||A4[el.dataset.act]||A5[el.dataset.act]||A7[el.dataset.act]||AG[el.dataset.act]||AOff[el.dataset.act]||ANuvem[el.dataset.act]; if(f){ e.preventDefault(); f(el.dataset, el); }
 });
 document.addEventListener('change', function(e){
@@ -8608,7 +8780,7 @@ document.addEventListener('change', function(e){
 document.addEventListener('toggle', function(e){ var d=e.target; if(d&&d.matches&&d.matches('details.ex')) ui.det[d.dataset.k]=d.open; }, true);
 
 /* ================= NUVEM, LOGIN E HISTÓRICO ================= */
-var COL_NOMES={solicitacoes:'Solicitação', solicitacoesImpacto:'Impacto da solicitação', garantias:'Garantia', chamadosGarantia:'Chamado de garantia', chamadosCustos:'Custo de garantia', visitasPosObra:'Visita pós-obra', pesquisasSatisfacao:'Pesquisa de satisfação', pedidosPag:'Pedido de pagamento', clientes:'Cliente', parceiros:'Parceiro', cadastros:'Cadastro da obra', arquivosObra:'Arquivo da obra', obras:'Obra', etapas:'Etapa', atividades:'Atividade', pacotes:'Pacote semanal', diarios:'Diário', fichas:'Ficha de verificação', ocorrencias:'Ocorrência', prestadores:'Prestador', eventos:'Agenda', atas:'Ata', acoes:'Ação', docsLegais:'Documento legal', docsPrest:'Documento de prestador', rfis:'Consulta técnica', materiais:'Material', locs:'Local', servicos:'Serviço', treinamentos:'Treinamento', fornecedores:'Fornecedor', compras:'Compra', movEstoque:'Estoque', locacoes:'Locação', contratosPrest:'Contrato', termos:'Termo', danos:'Dano', orcamentos:'Orçamento (versão)', orcItens:'Itens do orçamento', aditivos:'Aditivo', medicoes:'Medição', contasPagar:'Conta a pagar', aportes:'Aporte do cliente', empresas:'Empresa', contratosCliente:'Contrato do cliente', lancamentos:'Lançamento', relatorios:'Relatório mensal', avaliacoes:'Avaliação de prestador', licoes:'Lição aprendida', config:'Configuração'};
+var COL_NOMES={liberacoes:'Liberações', solicitacoes:'Solicitação', solicitacoesImpacto:'Impacto da solicitação', garantias:'Garantia', chamadosGarantia:'Chamado de garantia', chamadosCustos:'Custo de garantia', visitasPosObra:'Visita pós-obra', pesquisasSatisfacao:'Pesquisa de satisfação', pedidosPag:'Pedido de pagamento', clientes:'Cliente', parceiros:'Parceiro', cadastros:'Cadastro da obra', arquivosObra:'Arquivo da obra', obras:'Obra', etapas:'Etapa', atividades:'Atividade', pacotes:'Pacote semanal', diarios:'Diário', fichas:'Ficha de verificação', ocorrencias:'Ocorrência', prestadores:'Prestador', eventos:'Agenda', atas:'Ata', acoes:'Ação', docsLegais:'Documento legal', docsPrest:'Documento de prestador', rfis:'Consulta técnica', materiais:'Material', locs:'Local', servicos:'Serviço', treinamentos:'Treinamento', fornecedores:'Fornecedor', compras:'Compra', movEstoque:'Estoque', locacoes:'Locação', contratosPrest:'Contrato', termos:'Termo', danos:'Dano', orcamentos:'Orçamento (versão)', orcItens:'Itens do orçamento', aditivos:'Aditivo', medicoes:'Medição', contasPagar:'Conta a pagar', aportes:'Aporte do cliente', empresas:'Empresa', contratosCliente:'Contrato do cliente', lancamentos:'Lançamento', relatorios:'Relatório mensal', avaliacoes:'Avaliação de prestador', licoes:'Lição aprendida', config:'Configuração'};
 var hist={rows:null, carregando:false, erro:'', obra:'', colecao:''};
 
 function vLogin(){
