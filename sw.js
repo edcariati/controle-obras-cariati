@@ -29,6 +29,10 @@ self.addEventListener('fetch', function (e) {
     e.respondWith(fetch(req).then(function (res) { var c = res.clone(); caches.open(CACHE).then(function (ch) { ch.put(req, c); }); return res; }).catch(function () { return caches.match(req); }));
     return;
   }
+  if (req.mode === 'navigate') {   // abrir ou recarregar o app: rede primeiro, para sempre mostrar a versão mais nova; sem internet, usa a cópia guardada
+    e.respondWith(fetch(req).then(function (res) { if (res && res.ok) { var c = res.clone(); caches.open(CACHE).then(function (ch) { ch.put('index.html', c); }); } return res; }).catch(function () { return caches.match('index.html').then(function (r) { return r || caches.match('./'); }); }));
+    return;
+  }
   e.respondWith(caches.match(req, { ignoreSearch: true }).then(function (r) {
     if (r) return r;
     return fetch(req).catch(function () {
