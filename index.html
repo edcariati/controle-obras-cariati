@@ -9333,7 +9333,7 @@ function offRegistrarSW(){
     setInterval(function(){ try{ reg.update(); }catch(e){} }, 3600000);
   }).catch(function(){});
   var recarregou=false;
-  navigator.serviceWorker.addEventListener('controllerchange', function(){ if(recarregou) return; recarregou=true; location.reload(); });
+  navigator.serviceWorker.addEventListener('controllerchange', function(){ if(recarregou) return; recarregou=true; var dlg=document.getElementById('dlg'); if(dlg&&dlg.hasAttribute('open')) return; location.reload(); });
 }
 function offEhIOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent||'') || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1); }
 function offInstalado(){ return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone===true; }

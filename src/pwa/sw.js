@@ -8,6 +8,7 @@ var SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest', 'icon-192.
 var CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2';
 
 self.addEventListener('install', function (e) {
+  self.skipWaiting();   // versão nova assume sozinha: o app recarrega uma vez (se não houver formulário aberto) e passa a abrir sempre a mais nova
   e.waitUntil(caches.open(CACHE).then(function (c) {
     // a biblioteca externa é guardada sem travar a instalação (se a rede falhar agora, entra no 1º uso)
     return c.addAll(SHELL).then(function () { return c.add(new Request(CDN, { mode: 'no-cors' })).catch(function () {}); });
